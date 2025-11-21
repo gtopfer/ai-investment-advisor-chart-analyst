@@ -1,0 +1,103 @@
+import streamlit as st
+import pandas as pd
+from config.config import (
+    APP_TITLE, APP_ICON, DEFAULT_TICKERS_BR_STOCKS, DEFAULT_TICKERS_BR_FIIS,
+    DEFAULT_TICKERS_US, DEFAULT_TICKERS_CRYPTO
+)
+from ui.layout import render_header, render_sidebar, display_portfolio, render_disclaimer
+from data_fetcher.market_data import get_price_history, get_fundamentals
+from analysis.technical_analysis import analyze_chart_patterns
+from analysis.dividend_analysis import analyze_dividends
+from analysis.ai_chart_engine import run_ai_technical_analysis
+from allocator.portfolio_allocator import score_assets, allocate_capital
+from models.schemas import AssetAnalysis
+
+def main():
+    render_header(APP_TITLE, APP_ICON)
+    
+    # Sidebar Inputs
+    asset_classes, universe, strategy, capital, period = render_sidebar()
+    
+    if st.sidebar.button("Gerar Carteira Recomendada", type="primary"):
+        with st.spinner("Analisando mercado e processando dados..."):
+            
+            # 1. Seleção de Tickers Candidatos
+            tickers = []
+            
+            # Lógica simples de seleção baseada nos defaults (em prod seria um screener real)
+            if universe in ["Nacional", "Ambos"]:
+                if "Ações" in asset_classes: tickers.extend(DEFAULT_TICKERS_BR_STOCKS)
+                if "FIIs" in asset_classes: tickers.extend(DEFAULT_TICKERS_BR_FIIS)
+            
+            if universe in ["Internacional", "Ambos"]:
+                if "Ações" in asset_classes or "ETFs" in asset_classes: 
+                    tickers.extend(DEFAULT_TICKERS_US)
+            
+            if "Cripto" in asset_classes:
+                tickers.extend(DEFAULT_TICKERS_CRYPTO)
+                
+            if not tickers:
+                st.error("Nenhum ativo selecionado. Verifique os filtros.")
+                return
+
+            analyzed_assets = []
+            progress_bar = st.progress(0)
+            
+            for idx, ticker in enumerate(tickers):
+                # Atualiza barra de progresso
+                progress_bar.progress((idx + 1) / len(tickers))
+                
+                # 2. Coleta de Dados
+                price_df = get_price_history(ticker, period=period)
+                fundamentals = get_fundamentals(ticker)
+                
+                if price_df.empty:
+                    continue
+                    
+                current_price = fundamentals.get("current_price", 0.0)
+                if current_price == 0.0 and not price_df.empty:
+                    current_price = price_df['Close'].iloc[-1]
+
+                # 3. Análises
+                tech_indicators = analyze_chart_patterns(ticker, price_df)
+                
+                # Dividendos (apenas se fizer sentido)
+                div_metrics = analyze_dividends(ticker, fundamentals, price_df)
+                
+                # IA (Opcional: pode ser lento para muitos ativos, aqui fazemos para todos)
+                # Em produção, talvez limitar aos top X pré-filtrados
+                ai_result = run_ai_technical_analysis(ticker, tech_indicators)
+                
+                # Monta objeto
+                asset = AssetAnalysis(
+                    ticker=ticker,
+                    market="BR" if ".SA" in ticker else "US/CRYPTO", # Simplificação
+                    asset_class="Unknown", # Poderia refinar
+                    current_price=current_price,
+                    technical=tech_indicators,
+                    ai_analysis=ai_result,
+                    dividends=div_metrics
+                )
+                analyzed_assets.append(asset)
+            
+            # 4. Scoring e Alocação
+            scored_assets = score_assets(analyzed_assets, strategy)
+            final_portfolio = allocate_capital(scored_assets, capital)
+            
+            # 5. Exibição
+            st.success("Análise concluída!")
+            display_portfolio(final_portfolio)
+            
+            # Detalhes Expandidos (Opcional)
+            with st.expander("Ver Detalhes Técnicos de Todos os Ativos"):
+                for asset in scored_assets:
+                    st.markdown(f"**{asset.ticker}** - Score: {asset.total_score:.2f}")
+                    if asset.ai_analysis:
+                        st.caption(f"IA: {asset.ai_analysis.short_summary_pt}")
+                    st.write(f"RSI: {asset.technical.rsi:.1f} | Tendência: {asset.technical.ema_trend}")
+                    st.divider()
+
+    render_disclaimer()
+
+if __name__ == "__main__":
+    main()
