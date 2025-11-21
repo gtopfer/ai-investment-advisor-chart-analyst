@@ -89,6 +89,12 @@ pip install -r requirements.txt
 
 ### 4. Configurar Variáveis de Ambiente
 
+Opcional (para facilitar localmente): copie o exemplo e edite:
+
+```bash
+cp .env.example .env
+```
+
 Para usar a IA da Groq (Llama 3), você precisa de uma API Key. Obtenha uma gratuitamente em [Groq Console](https://console.groq.com/keys).
 
 **Linux/macOS:**
@@ -116,6 +122,19 @@ streamlit run app.py
 ```
 
 O navegador abrirá automaticamente no endereço `http://localhost:8501`.
+
+---
+
+## 🧪 Testes rápidos e lint
+
+Instale as dependências de desenvolvimento e rode os testes unitários básicos:
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+```
+
+Use `ruff check .` para um lint rápido.
 
 ---
 
