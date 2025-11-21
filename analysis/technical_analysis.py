@@ -67,23 +67,26 @@ def analyze_chart_patterns(ticker: str, price_df: pd.DataFrame) -> TechnicalIndi
         elif close <= lower * 1.02: # Próximo da banda inferior
             bollinger_position = "lower"
 
-    # 5. Volatilidade (Desvio padrão dos retornos logarítmicos * raiz(252) para anualizar, ou simples)
-    # Vamos usar uma medida simples de volatilidade recente (ATR ou desvio padrão dos últimos 20 dias)
-    returns = price_df.ta.log_return()
-    volatility = returns.std() * (252**0.5) if returns is not None else 0.0
+    # 5. Volatilidade recente (20 dias) usando variação percentual diária
+    returns = price_df["Close"].pct_change().dropna().tail(20)
+    volatility = returns.std() * (252**0.5) if not returns.empty else 0.0
 
-    # 6. Suportes e Resistências (Simplificado: Máximas e Mínimas locais recentes)
-    # Pega os últimos 60 dias
-    recent_window = price_df.tail(60)
-    resistance = recent_window['High'].max()
-    support = recent_window['Low'].min()
+    # 6. Suportes e Resistências (simplificado: máximas e mínimas locais recentes)
+    if len(price_df) >= 2:
+        recent_window = price_df.tail(60)
+        resistance = recent_window["High"].max()
+        support = recent_window["Low"].min()
+    else:
+        last_close = price_df["Close"].iloc[-1]
+        resistance = last_close
+        support = last_close
 
     return TechnicalIndicators(
         rsi=float(current_rsi),
         macd_signal=macd_signal,
         ema_trend=ema_trend,
         bollinger_position=bollinger_position,
-        volatility=float(volatility),
-        support_levels=[float(support)],
-        resistance_levels=[float(resistance)]
+        volatility=float(volatility) if pd.notna(volatility) else 0.0,
+        support_levels=[float(support)] if pd.notna(support) else [],
+        resistance_levels=[float(resistance)] if pd.notna(resistance) else []
     )

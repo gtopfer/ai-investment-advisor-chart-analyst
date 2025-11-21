@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 from config.config import (
     APP_TITLE, APP_ICON, DEFAULT_TICKERS_BR_STOCKS, DEFAULT_TICKERS_BR_FIIS,
     DEFAULT_TICKERS_US, DEFAULT_TICKERS_CRYPTO
@@ -16,7 +15,7 @@ def main():
     render_header(APP_TITLE, APP_ICON)
     
     # Sidebar Inputs
-    asset_classes, universe, strategy, capital, period = render_sidebar()
+    asset_classes, universe, strategy, capital, period, run_ai, max_ai_assets = render_sidebar()
     
     if st.sidebar.button("Gerar Carteira Recomendada", type="primary"):
         with st.spinner("Analisando mercado e processando dados..."):
@@ -41,6 +40,7 @@ def main():
                 return
 
             analyzed_assets = []
+            ai_calls = 0
             progress_bar = st.progress(0)
             
             for idx, ticker in enumerate(tickers):
@@ -64,9 +64,11 @@ def main():
                 # Dividendos (apenas se fizer sentido)
                 div_metrics = analyze_dividends(ticker, fundamentals, price_df)
                 
-                # IA (Opcional: pode ser lento para muitos ativos, aqui fazemos para todos)
-                # Em produção, talvez limitar aos top X pré-filtrados
-                ai_result = run_ai_technical_analysis(ticker, tech_indicators)
+                # IA (opcional)
+                ai_result = None
+                if run_ai and ai_calls < max_ai_assets:
+                    ai_result = run_ai_technical_analysis(ticker, tech_indicators)
+                    ai_calls += 1
                 
                 # Monta objeto
                 asset = AssetAnalysis(
@@ -86,6 +88,10 @@ def main():
             
             # 5. Exibição
             st.success("Análise concluída!")
+            if run_ai:
+                st.caption(f"IA executada em {ai_calls} ativos (limite configurado: {max_ai_assets}).")
+            else:
+                st.caption("IA desativada nesta rodada. Ative na barra lateral se quiser as justificativas da Groq.")
             display_portfolio(final_portfolio)
             
             # Detalhes Expandidos (Opcional)

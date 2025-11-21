@@ -1,10 +1,12 @@
+import streamlit as st
 import yfinance as yf
 import pandas as pd
 from typing import Dict, Optional
 
+@st.cache_data(show_spinner=False, ttl=900)
 def get_price_history(ticker: str, period: str = "1y") -> pd.DataFrame:
     """
-    Busca histórico de preços via yfinance.
+    Busca histórico de preços via yfinance e cacheia para reduzir chamadas.
     """
     try:
         ticker_obj = yf.Ticker(ticker)
@@ -16,9 +18,10 @@ def get_price_history(ticker: str, period: str = "1y") -> pd.DataFrame:
         print(f"Erro ao buscar dados para {ticker}: {e}")
         return pd.DataFrame()
 
+@st.cache_data(show_spinner=False, ttl=900)
 def get_fundamentals(ticker: str) -> Dict:
     """
-    Busca fundamentos básicos via yfinance.
+    Busca fundamentos básicos via yfinance e cacheia para reduzir latência.
     """
     try:
         ticker_obj = yf.Ticker(ticker)

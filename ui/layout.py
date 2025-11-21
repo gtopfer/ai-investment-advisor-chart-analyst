@@ -41,8 +41,10 @@ def render_sidebar():
     st.sidebar.markdown("---")
     st.sidebar.subheader("Avançado")
     period = st.sidebar.selectbox("Período de Análise", ["6mo", "1y", "2y", "5y"], index=1)
+    run_ai = st.sidebar.checkbox("Rodar análise IA (Groq)", value=False, help="Desative para acelerar. Ative se houver chave GROQ_API_KEY.")
+    max_ai_assets = st.sidebar.slider("Limite de ativos para IA", min_value=1, max_value=30, value=5, step=1, help="Limita quantos tickers recebem análise de IA nesta rodada.")
     
-    return asset_classes, universe, strategy, capital, period
+    return asset_classes, universe, strategy, capital, period, run_ai, max_ai_assets
 
 def display_portfolio(portfolio):
     if not portfolio:
