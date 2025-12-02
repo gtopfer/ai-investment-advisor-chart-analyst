@@ -1,7 +1,13 @@
 import streamlit as st
 from config.config import (
-    APP_TITLE, APP_ICON, DEFAULT_TICKERS_BR_STOCKS, DEFAULT_TICKERS_BR_FIIS,
-    DEFAULT_TICKERS_US, DEFAULT_TICKERS_CRYPTO
+    APP_TITLE,
+    APP_ICON,
+    DEFAULT_TICKERS_BR_STOCKS,
+    DEFAULT_TICKERS_BR_FIIS,
+    DEFAULT_TICKERS_US,
+    DEFAULT_TICKERS_US_ETFS,
+    DEFAULT_TICKERS_US_STOCKS,
+    DEFAULT_TICKERS_CRYPTO,
 )
 from ui.layout import render_header, render_sidebar, display_portfolio, render_disclaimer
 from data_fetcher.market_data import get_price_history, get_fundamentals
@@ -20,6 +26,10 @@ def classify_ticker(ticker: str) -> tuple[str, str]:
         return "FIIs", "BR"
     if ticker in DEFAULT_TICKERS_BR_STOCKS:
         return "Ações", "BR"
+    if ticker in DEFAULT_TICKERS_US_ETFS:
+        return "ETFs", "US"
+    if ticker in DEFAULT_TICKERS_US_STOCKS:
+        return "Ações", "US"
     if ticker in DEFAULT_TICKERS_US:
         return "Ações/ETF", "US"
     if ticker in DEFAULT_TICKERS_CRYPTO or "-USD" in ticker:
@@ -27,6 +37,31 @@ def classify_ticker(ticker: str) -> tuple[str, str]:
     if ticker.endswith(".SA"):
         return "Ações", "BR"
     return "Desconhecido", "US/CRYPTO"
+
+
+def build_candidate_tickers(asset_classes, universe) -> list[str]:
+    """
+    Monta lista de tickers respeitando filtro de classes e geografia.
+    """
+    tickers: list[str] = []
+
+    if universe in ["Nacional", "Ambos"]:
+        if "Ações" in asset_classes:
+            tickers.extend(DEFAULT_TICKERS_BR_STOCKS)
+        if "FIIs" in asset_classes:
+            tickers.extend(DEFAULT_TICKERS_BR_FIIS)
+
+    if universe in ["Internacional", "Ambos"]:
+        if "Ações" in asset_classes:
+            tickers.extend(DEFAULT_TICKERS_US_STOCKS)
+        if "ETFs" in asset_classes:
+            tickers.extend(DEFAULT_TICKERS_US_ETFS)
+
+    if "Cripto" in asset_classes:
+        tickers.extend(DEFAULT_TICKERS_CRYPTO)
+
+    # Remove duplicados preservando ordem inicial
+    return list(dict.fromkeys(tickers))
 
 
 def main():
@@ -39,20 +74,8 @@ def main():
         with st.spinner("Analisando mercado e processando dados..."):
             
             # 1. Seleção de Tickers Candidatos
-            tickers = []
-            
-            # Lógica simples de seleção baseada nos defaults (em prod seria um screener real)
-            if universe in ["Nacional", "Ambos"]:
-                if "Ações" in asset_classes: tickers.extend(DEFAULT_TICKERS_BR_STOCKS)
-                if "FIIs" in asset_classes: tickers.extend(DEFAULT_TICKERS_BR_FIIS)
-            
-            if universe in ["Internacional", "Ambos"]:
-                if "Ações" in asset_classes or "ETFs" in asset_classes: 
-                    tickers.extend(DEFAULT_TICKERS_US)
-            
-            if "Cripto" in asset_classes:
-                tickers.extend(DEFAULT_TICKERS_CRYPTO)
-                
+            tickers = build_candidate_tickers(asset_classes, universe)
+
             if not tickers:
                 st.error("Nenhum ativo selecionado. Verifique os filtros.")
                 return
