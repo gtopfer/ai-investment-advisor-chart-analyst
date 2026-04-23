@@ -1,4 +1,6 @@
 import streamlit as st
+from typing import Dict, List
+
 from config.config import (
     APP_TITLE,
     APP_ICON,
@@ -9,12 +11,18 @@ from config.config import (
     DEFAULT_TICKERS_US_STOCKS,
     DEFAULT_TICKERS_CRYPTO,
 )
-from ui.layout import render_header, render_sidebar, display_portfolio, render_disclaimer
+from ui.layout import (
+    render_header,
+    render_sidebar,
+    display_portfolio,
+    display_rebalance_plan,
+    render_disclaimer,
+)
 from data_fetcher.market_data import get_price_history, get_fundamentals
 from analysis.technical_analysis import analyze_chart_patterns
 from analysis.dividend_analysis import analyze_dividends
 from analysis.ai_chart_engine import run_ai_technical_analysis
-from allocator.portfolio_allocator import score_assets, allocate_capital
+from allocator.portfolio_allocator import score_assets, allocate_capital, build_rebalance_actions
 from models.schemas import AssetAnalysis
 
 
@@ -64,17 +72,90 @@ def build_candidate_tickers(asset_classes, universe) -> list[str]:
     return list(dict.fromkeys(tickers))
 
 
+def _parse_numeric_value(value: str) -> float:
+    clean = value.strip().replace("R$", "").replace(" ", "")
+    if "," in clean and "." in clean:
+        if clean.rfind(",") > clean.rfind("."):
+            clean = clean.replace(".", "").replace(",", ".")
+        else:
+            clean = clean.replace(",", "")
+    elif "," in clean:
+        clean = clean.replace(".", "").replace(",", ".")
+    return float(clean)
+
+
+def parse_current_portfolio(raw_text: str) -> Dict[str, float]:
+    """
+    Parseia carteira informada pelo usuário.
+    Formatos aceitos por linha: TICKER,VALOR | TICKER:VALOR | TICKER;VALOR
+    """
+    positions: Dict[str, float] = {}
+    for raw_line in raw_text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        normalized = line.replace(";", ",").replace(":", ",")
+        parts = [part.strip() for part in normalized.split(",") if part.strip()]
+        if len(parts) != 2:
+            continue
+
+        ticker = parts[0].upper()
+        try:
+            amount = _parse_numeric_value(parts[1])
+        except ValueError:
+            continue
+
+        if amount <= 0:
+            continue
+
+        positions[ticker] = positions.get(ticker, 0.0) + amount
+    return positions
+
+
+def convert_positions_to_value_map(
+    positions: Dict[str, float],
+    portfolio_mode: str,
+    analyzed_assets: List[AssetAnalysis],
+) -> Dict[str, float]:
+    """
+    Converte posições atuais em mapa de valor monetário por ticker.
+    """
+    if portfolio_mode == "Valor atual (R$)":
+        return positions
+
+    prices = {asset.ticker: float(asset.current_price) for asset in analyzed_assets}
+    value_map: Dict[str, float] = {}
+    for ticker, qty in positions.items():
+        value_map[ticker] = qty * prices.get(ticker, 0.0)
+    return value_map
+
+
 def main():
     render_header(APP_TITLE, APP_ICON)
     
     # Sidebar Inputs
-    asset_classes, universe, strategy, capital, period, run_ai, max_ai_assets = render_sidebar()
+    (
+        asset_classes,
+        universe,
+        strategy,
+        capital,
+        period,
+        run_ai,
+        max_ai_assets,
+        portfolio_mode,
+        current_portfolio_text,
+        max_portfolio_assets,
+    ) = render_sidebar()
     
     if st.sidebar.button("Gerar Carteira Recomendada", type="primary"):
         with st.spinner("Analisando mercado e processando dados..."):
             
             # 1. Seleção de Tickers Candidatos
             tickers = build_candidate_tickers(asset_classes, universe)
+            current_positions = parse_current_portfolio(current_portfolio_text)
+            if current_positions:
+                tickers = list(dict.fromkeys(tickers + list(current_positions.keys())))
 
             if not tickers:
                 st.error("Nenhum ativo selecionado. Verifique os filtros.")
@@ -127,7 +208,11 @@ def main():
             
             # 4. Scoring e Alocação
             scored_assets = score_assets(analyzed_assets, strategy)
-            final_portfolio = allocate_capital(scored_assets, capital)
+            current_value_map = convert_positions_to_value_map(current_positions, portfolio_mode, scored_assets)
+            current_total_value = sum(current_value_map.values())
+            target_total_value = current_total_value + capital
+            final_portfolio = allocate_capital(scored_assets, target_total_value, max_assets=max_portfolio_assets)
+            rebalance_actions = build_rebalance_actions(current_value_map, final_portfolio)
             
             # 5. Exibição
             st.success("Análise concluída!")
@@ -136,6 +221,7 @@ def main():
             else:
                 st.caption("IA desativada nesta rodada. Ative na barra lateral se quiser as justificativas da Groq.")
             display_portfolio(final_portfolio)
+            display_rebalance_plan(rebalance_actions, current_total_value, capital, target_total_value)
             
             # Detalhes Expandidos (Opcional)
             with st.expander("Ver Detalhes Técnicos de Todos os Ativos"):

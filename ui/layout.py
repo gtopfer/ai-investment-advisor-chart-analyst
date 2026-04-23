@@ -32,10 +32,24 @@ def render_sidebar():
     
     # Capital
     capital = st.sidebar.number_input(
-        "Capital Total (R$)",
+        "Novo aporte para investir (R$)",
         min_value=100.0,
         value=10000.0,
         step=100.0
+    )
+
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Carteira atual")
+    portfolio_mode = st.sidebar.selectbox(
+        "Formato da carteira atual",
+        ["Valor atual (R$)", "Quantidade de cotas/unidades"],
+        index=0,
+    )
+    current_portfolio_text = st.sidebar.text_area(
+        "Posições atuais (uma por linha)",
+        value="PETR4.SA, 3000\nHGLG11.SA, 2000\nAAPL, 1500",
+        height=120,
+        help="Formato: TICKER, VALOR ou TICKER, QUANTIDADE (dependendo da opção acima).",
     )
     
     st.sidebar.markdown("---")
@@ -43,8 +57,26 @@ def render_sidebar():
     period = st.sidebar.selectbox("Período de Análise", ["6mo", "1y", "2y", "5y"], index=1)
     run_ai = st.sidebar.checkbox("Rodar análise IA (Groq)", value=False, help="Desative para acelerar. Ative se houver chave GROQ_API_KEY.")
     max_ai_assets = st.sidebar.slider("Limite de ativos para IA", min_value=1, max_value=30, value=5, step=1, help="Limita quantos tickers recebem análise de IA nesta rodada.")
+    max_portfolio_assets = st.sidebar.slider(
+        "Máximo de ativos na carteira alvo",
+        min_value=3,
+        max_value=20,
+        value=10,
+        step=1,
+    )
     
-    return asset_classes, universe, strategy, capital, period, run_ai, max_ai_assets
+    return (
+        asset_classes,
+        universe,
+        strategy,
+        capital,
+        period,
+        run_ai,
+        max_ai_assets,
+        portfolio_mode,
+        current_portfolio_text,
+        max_portfolio_assets,
+    )
 
 def display_portfolio(portfolio):
     if not portfolio:
@@ -77,6 +109,32 @@ def display_portfolio(portfolio):
             "Alocação": [p.suggested_allocation_pct for p in portfolio]
         })
         st.bar_chart(chart_data.set_index("Ticker"))
+
+
+def display_rebalance_plan(actions, current_total: float, new_investment: float, target_total: float):
+    st.subheader("Plano de Rebalanceamento Automático")
+    st.caption(
+        f"Carteira atual: R$ {current_total:,.2f} | Aporte novo: R$ {new_investment:,.2f} | "
+        f"Carteira alvo: R$ {target_total:,.2f}"
+    )
+
+    if not actions:
+        st.info("Sem ajustes relevantes para rebalanceamento no momento.")
+        return
+
+    rows = []
+    for item in actions:
+        rows.append(
+            {
+                "Ticker": item["ticker"],
+                "Ação": item["action"],
+                "Valor Atual (R$)": f"R$ {item['current_value']:,.2f}",
+                "Valor Alvo (R$)": f"R$ {item['target_value']:,.2f}",
+                "Ajuste (R$)": f"R$ {item['delta_value']:,.2f}",
+            }
+        )
+
+    st.dataframe(pd.DataFrame(rows), use_container_width=True)
 
 def render_disclaimer():
     st.markdown("---")

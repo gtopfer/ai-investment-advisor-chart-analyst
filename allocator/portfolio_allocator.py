@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, Dict, List
 from models.schemas import AssetAnalysis
 from config.config import STRATEGY_WEIGHTS
 
@@ -83,3 +83,45 @@ def allocate_capital(scored_assets: List[AssetAnalysis], total_capital: float, m
         asset.suggested_value = total_capital * normalized_weight
         
     return candidates
+
+
+def build_rebalance_actions(
+    current_values: Dict[str, float],
+    target_assets: List[AssetAnalysis],
+    min_trade_value: float = 1.0,
+) -> List[Dict[str, Any]]:
+    """
+    Compara carteira atual vs. carteira alvo e retorna ações de rebalanceamento.
+    """
+    target_values = {asset.ticker: float(asset.suggested_value) for asset in target_assets}
+    all_tickers = set(current_values.keys()) | set(target_values.keys())
+    actions: List[Dict[str, Any]] = []
+
+    for ticker in all_tickers:
+        current_value = float(current_values.get(ticker, 0.0))
+        target_value = float(target_values.get(ticker, 0.0))
+        delta_value = target_value - current_value
+
+        if abs(delta_value) < min_trade_value:
+            continue
+
+        if current_value <= 0 and target_value > 0:
+            action = "Abrir posição (Comprar)"
+        elif target_value <= 0 and current_value > 0:
+            action = "Zerar posição (Vender)"
+        elif delta_value > 0:
+            action = "Comprar mais"
+        else:
+            action = "Reduzir/Vender"
+
+        actions.append(
+            {
+                "ticker": ticker,
+                "action": action,
+                "current_value": current_value,
+                "target_value": target_value,
+                "delta_value": delta_value,
+            }
+        )
+
+    return sorted(actions, key=lambda item: abs(item["delta_value"]), reverse=True)
