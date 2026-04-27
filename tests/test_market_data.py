@@ -1,6 +1,6 @@
 import pandas as pd
 import pytest
-from unittest.mock import PropertyMock
+from unittest.mock import patch, MagicMock, PropertyMock
 from data_fetcher.market_data import get_price_history, get_fundamentals
 import streamlit as st
 
@@ -133,3 +133,27 @@ def test_get_fundamentals_exception(mock_yf_ticker, capsys):
     assert result == {}
     captured = capsys.readouterr()
     assert "Erro ao buscar fundamentos para TEST: API Error" in captured.out
+
+
+# Testes adicionais usando __wrapped__ para validar lógica interna sem cache
+@patch('yfinance.Ticker')
+def test_get_price_history_wrapped_exception(mock_ticker):
+    mock_instance = MagicMock()
+    mock_instance.history.side_effect = Exception("API Error")
+    mock_ticker.return_value = mock_instance
+
+    df = get_price_history.__wrapped__("TICKER", period="1y")
+
+    assert df.empty
+    assert isinstance(df, pd.DataFrame)
+
+@patch('yfinance.Ticker')
+def test_get_price_history_wrapped_empty(mock_ticker):
+    mock_instance = MagicMock()
+    mock_instance.history.return_value = pd.DataFrame()
+    mock_ticker.return_value = mock_instance
+
+    df = get_price_history.__wrapped__("TICKER", period="1y")
+
+    assert df.empty
+    assert isinstance(df, pd.DataFrame)
