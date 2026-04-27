@@ -10,6 +10,8 @@ from config.config import (
     DEFAULT_TICKERS_US_ETFS,
     DEFAULT_TICKERS_US_STOCKS,
     DEFAULT_TICKERS_CRYPTO,
+    AI_ACCESS_PASSWORD,
+    MAX_AI_CALLS_PER_SESSION,
 )
 from ui.layout import (
     render_header,
@@ -143,10 +145,23 @@ def process_portfolio(
     portfolio_mode: str,
     capital: float,
     max_portfolio_assets: int,
+    ai_password: str = "",
     progress_callback=None,
 ):
     analyzed_assets = []
     ai_calls = 0
+
+    if run_ai:
+        if AI_ACCESS_PASSWORD and ai_password != AI_ACCESS_PASSWORD:
+            st.warning("Senha da IA incorreta. A análise com IA foi desativada para esta execução.")
+            run_ai = False
+
+        if "ai_calls_session" not in st.session_state:
+            st.session_state.ai_calls_session = 0
+
+        if st.session_state.ai_calls_session >= MAX_AI_CALLS_PER_SESSION:
+            st.warning(f"Limite de chamadas IA por sessão ({MAX_AI_CALLS_PER_SESSION}) atingido. A análise com IA foi desativada.")
+            run_ai = False
 
     for idx, ticker in enumerate(tickers):
         if progress_callback:
@@ -173,9 +188,10 @@ def process_portfolio(
 
         # IA (opcional)
         ai_result = None
-        if run_ai and ai_calls < max_ai_assets:
+        if run_ai and ai_calls < max_ai_assets and st.session_state.ai_calls_session < MAX_AI_CALLS_PER_SESSION:
             ai_result = run_ai_technical_analysis(ticker, tech_indicators)
             ai_calls += 1
+            st.session_state.ai_calls_session += 1
 
         # Monta objeto
         asset = AssetAnalysis(
@@ -215,6 +231,7 @@ def main():
         portfolio_mode,
         current_portfolio_text,
         max_portfolio_assets,
+        ai_password,
     ) = render_sidebar()
     
     if st.sidebar.button("Gerar Carteira Recomendada", type="primary"):
@@ -244,6 +261,7 @@ def main():
                 portfolio_mode=portfolio_mode,
                 capital=capital,
                 max_portfolio_assets=max_portfolio_assets,
+                ai_password=ai_password,
                 progress_callback=update_progress,
             )
             
