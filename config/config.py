@@ -30,3 +30,7 @@ DEFAULT_TICKERS_CRYPTO = ["BTC-USD", "ETH-USD", "SOL-USD"]
 # Chave de API (Tenta pegar do ambiente)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+
+# Segurança IA
+AI_ACCESS_PASSWORD = os.getenv("AI_ACCESS_PASSWORD", "")
+MAX_AI_CALLS_PER_SESSION = int(os.getenv("MAX_AI_CALLS_PER_SESSION", "15"))
