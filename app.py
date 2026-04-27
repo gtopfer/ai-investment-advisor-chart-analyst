@@ -103,6 +103,9 @@ def parse_current_portfolio(raw_text: str) -> Dict[str, float]:
             continue
 
         ticker = parts[0].upper()
+        if not re.match(r"^[A-Z0-9.\-]+$", ticker):
+            continue
+
         try:
             amount = _parse_numeric_value(parts[1])
         except ValueError:
