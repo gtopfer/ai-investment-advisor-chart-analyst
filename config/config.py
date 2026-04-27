@@ -6,7 +6,6 @@ APP_ICON = "📈"
 
 # Períodos de Análise
 DEFAULT_PERIOD = "1y"
-DEFAULT_INTERVAL = "1d"
 
 # Pesos Padrão para Estratégias (Técnico, Dividendos)
 STRATEGY_WEIGHTS = {
