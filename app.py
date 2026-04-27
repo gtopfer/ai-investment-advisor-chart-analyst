@@ -1,5 +1,8 @@
 import streamlit as st
 from typing import Dict, List
+import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
 
 from config.config import (
     APP_TITLE,
@@ -84,8 +87,6 @@ def _parse_numeric_value(value: str) -> float:
     return float(clean)
 
 
-import re
-
 def parse_current_portfolio(raw_text: str) -> Dict[str, float]:
     """
     Parseia carteira informada pelo usuário.
@@ -133,6 +134,35 @@ def convert_positions_to_value_map(
     return value_map
 
 
+def _process_single_ticker(ticker: str, period: str):
+    # 2. Coleta de Dados
+    price_df = get_price_history(ticker, period=period)
+    fundamentals = get_fundamentals(ticker) or {}
+
+    if price_df.empty and not fundamentals:
+        return None
+
+    current_price = fundamentals.get("current_price", 0.0)
+    if current_price == 0.0 and not price_df.empty:
+        current_price = price_df['Close'].iloc[-1]
+
+    asset_class, market = classify_ticker(ticker)
+
+    # 3. Análises (sem IA ainda)
+    tech_indicators = analyze_chart_patterns(ticker, price_df)
+    div_metrics = analyze_dividends(ticker, fundamentals, price_df)
+
+    return AssetAnalysis(
+        ticker=ticker,
+        market=market,
+        asset_class=asset_class,
+        current_price=current_price,
+        technical=tech_indicators,
+        ai_analysis=None,
+        dividends=div_metrics
+    )
+
+
 def process_portfolio(
     tickers: list[str],
     current_positions: Dict[str, float],
@@ -148,46 +178,50 @@ def process_portfolio(
     analyzed_assets = []
     ai_calls = 0
 
-    for idx, ticker in enumerate(tickers):
-        if progress_callback:
-            progress_callback(idx, len(tickers))
+    # Usar ThreadPoolExecutor para chamadas em paralelo
+    # Isso acelera as requisições de yfinance (I/O bound)
+    completed_count = 0
 
-        # 2. Coleta de Dados
-        price_df = get_price_history(ticker, period=period)
-        fundamentals = get_fundamentals(ticker) or {}
+    # Dicionário para guardar os resultados de forma ordenada
+    results = {ticker: None for ticker in tickers}
+    ctx = get_script_run_ctx()
 
-        if price_df.empty and not fundamentals:
-            continue
+    def _process_with_context(ticker_arg, period_arg, run_ctx):
+        if run_ctx:
+            add_script_run_ctx(ctx=run_ctx)
+        return _process_single_ticker(ticker_arg, period_arg)
 
-        current_price = fundamentals.get("current_price", 0.0)
-        if current_price == 0.0 and not price_df.empty:
-            current_price = price_df['Close'].iloc[-1]
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_ticker = {
+            executor.submit(_process_with_context, ticker, period, ctx): ticker
+            for ticker in tickers
+        }
 
-        asset_class, market = classify_ticker(ticker)
+        for future in as_completed(future_to_ticker):
+            completed_count += 1
+            if progress_callback:
+                progress_callback(completed_count - 1, len(tickers))
 
-        # 3. Análises
-        tech_indicators = analyze_chart_patterns(ticker, price_df)
+            ticker = future_to_ticker[future]
+            try:
+                asset = future.result()
+                if asset:
+                    results[ticker] = asset
+            except Exception as e:
+                print(f"Erro ao processar {ticker}: {e}")
 
-        # Dividendos (apenas se fizer sentido)
-        div_metrics = analyze_dividends(ticker, fundamentals, price_df)
+    # Reconstruir a lista garantindo a mesma ordem do array original
+    for ticker in tickers:
+        if results[ticker] is not None:
+            analyzed_assets.append(results[ticker])
 
-        # IA (opcional)
-        ai_result = None
-        if run_ai and ai_calls < max_ai_assets:
-            ai_result = run_ai_technical_analysis(ticker, tech_indicators)
+    # Executar a IA de forma sequencial para respeitar o limite global de chamadas
+    if run_ai:
+        for asset in analyzed_assets:
+            if ai_calls >= max_ai_assets:
+                break
+            asset.ai_analysis = run_ai_technical_analysis(asset.ticker, asset.technical)
             ai_calls += 1
-
-        # Monta objeto
-        asset = AssetAnalysis(
-            ticker=ticker,
-            market=market,
-            asset_class=asset_class,
-            current_price=current_price,
-            technical=tech_indicators,
-            ai_analysis=ai_result,
-            dividends=div_metrics
-        )
-        analyzed_assets.append(asset)
 
     # 4. Scoring e Alocação
     scored_assets = score_assets(analyzed_assets, strategy)
