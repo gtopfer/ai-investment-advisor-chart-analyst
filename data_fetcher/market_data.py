@@ -3,8 +3,10 @@ import yfinance as yf
 import pandas as pd
 from typing import Dict, Optional
 
+from config.config import DEFAULT_PERIOD
+
 @st.cache_data(show_spinner=False, ttl=900)
-def get_price_history(ticker: str, period: str = "1y") -> pd.DataFrame:
+def get_price_history(ticker: str, period: str = DEFAULT_PERIOD) -> pd.DataFrame:
     """
     Busca histórico de preços via yfinance e cacheia para reduzir chamadas.
     """
