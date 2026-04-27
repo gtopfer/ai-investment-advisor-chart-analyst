@@ -1,4 +1,5 @@
 import json
+import logging
 from json import JSONDecodeError
 from typing import Any, Dict
 
@@ -110,7 +111,7 @@ def run_ai_technical_analysis(ticker: str, indicators: TechnicalIndicators) -> A
         return _parse_ai_response(text_response, indicators)
 
     except Exception as e:
-        print(f"Erro na análise de IA para {ticker}: {e}")
+        logging.error(f"Erro na análise de IA para {ticker}", exc_info=e)
         return _fallback_result(
             indicators,
             "Erro ao conectar com o motor de IA (Groq).",
