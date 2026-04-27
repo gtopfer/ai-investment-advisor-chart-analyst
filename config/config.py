@@ -27,15 +27,6 @@ DEFAULT_TICKERS_US_ETFS = ["SPY", "QQQ"]
 DEFAULT_TICKERS_US = DEFAULT_TICKERS_US_STOCKS + DEFAULT_TICKERS_US_ETFS
 DEFAULT_TICKERS_CRYPTO = ["BTC-USD", "ETH-USD", "SOL-USD"]
 
-# Mapeamento de Classes
-ASSET_CLASSES = {
-    "Ações": "stock",
-    "FIIs": "reit",
-    "ETFs": "etf",
-    "BDRs": "bdr",
-    "Cripto": "crypto"
-}
-
 # Chave de API (Tenta pegar do ambiente)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
