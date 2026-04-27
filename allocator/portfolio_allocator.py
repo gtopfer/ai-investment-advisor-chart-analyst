@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 from models.schemas import AssetAnalysis
-from config.config import STRATEGY_WEIGHTS
+from config.config import STRATEGY_WEIGHTS, RSI_OVERSOLD, RSI_OVERBOUGHT
 
 def score_assets(assets: List[AssetAnalysis], strategy: str) -> List[AssetAnalysis]:
     """
@@ -15,8 +15,8 @@ def score_assets(assets: List[AssetAnalysis], strategy: str) -> List[AssetAnalys
         tech_score = 0.5 # Base neutra
         if asset.technical:
             # RSI
-            if asset.technical.rsi < 30: tech_score += 0.2
-            elif asset.technical.rsi > 70: tech_score -= 0.2
+            if asset.technical.rsi < RSI_OVERSOLD: tech_score += 0.2
+            elif asset.technical.rsi > RSI_OVERBOUGHT: tech_score -= 0.2
             
             # MACD
             if asset.technical.macd_signal == "bullish": tech_score += 0.2
