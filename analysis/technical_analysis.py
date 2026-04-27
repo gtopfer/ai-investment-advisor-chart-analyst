@@ -55,17 +55,22 @@ def analyze_chart_patterns(ticker: str, price_df: pd.DataFrame) -> TechnicalIndi
 
     # 4. Bollinger Bands
     bb = price_df.ta.bbands(length=20, std=2)
-    # Colunas: BBL_20_2.0, BBM_20_2.0, BBU_20_2.0
+    # Colunas podem variar conforme a versão (ex: BBL_20_2.0_2.0 vs BBL_20_2.0)
     bollinger_position = "middle"
     if bb is not None and not bb.empty:
         close = price_df['Close'].iloc[-1]
-        upper = bb.iloc[-1]['BBU_20_2.0']
-        lower = bb.iloc[-1]['BBL_20_2.0']
         
-        if close >= upper * 0.98: # Próximo da banda superior
-            bollinger_position = "upper"
-        elif close <= lower * 1.02: # Próximo da banda inferior
-            bollinger_position = "lower"
+        bbu_col = next((col for col in bb.columns if col.startswith('BBU')), None)
+        bbl_col = next((col for col in bb.columns if col.startswith('BBL')), None)
+
+        if bbu_col and bbl_col:
+            upper = bb.iloc[-1][bbu_col]
+            lower = bb.iloc[-1][bbl_col]
+
+            if close >= upper * 0.98: # Próximo da banda superior
+                bollinger_position = "upper"
+            elif close <= lower * 1.02: # Próximo da banda inferior
+                bollinger_position = "lower"
 
     # 5. Volatilidade recente (20 dias) usando variação percentual diária
     returns = price_df["Close"].pct_change().dropna().tail(20)

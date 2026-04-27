@@ -84,6 +84,8 @@ def _parse_numeric_value(value: str) -> float:
     return float(clean)
 
 
+import re
+
 def parse_current_portfolio(raw_text: str) -> Dict[str, float]:
     """
     Parseia carteira informada pelo usuário.
@@ -95,8 +97,8 @@ def parse_current_portfolio(raw_text: str) -> Dict[str, float]:
         if not line or line.startswith("#"):
             continue
 
-        normalized = line.replace(";", ",").replace(":", ",")
-        parts = [part.strip() for part in normalized.split(",") if part.strip()]
+        # Split by the first occurrence of , ; or :
+        parts = [part.strip() for part in re.split(r'[,;:]', line, maxsplit=1) if part.strip()]
         if len(parts) != 2:
             continue
 
@@ -131,6 +133,73 @@ def convert_positions_to_value_map(
     return value_map
 
 
+def process_portfolio(
+    tickers: list[str],
+    current_positions: Dict[str, float],
+    period: str,
+    run_ai: bool,
+    max_ai_assets: int,
+    strategy: str,
+    portfolio_mode: str,
+    capital: float,
+    max_portfolio_assets: int,
+    progress_callback=None,
+):
+    analyzed_assets = []
+    ai_calls = 0
+
+    for idx, ticker in enumerate(tickers):
+        if progress_callback:
+            progress_callback(idx, len(tickers))
+
+        # 2. Coleta de Dados
+        price_df = get_price_history(ticker, period=period)
+        fundamentals = get_fundamentals(ticker) or {}
+
+        if price_df.empty and not fundamentals:
+            continue
+
+        current_price = fundamentals.get("current_price", 0.0)
+        if current_price == 0.0 and not price_df.empty:
+            current_price = price_df['Close'].iloc[-1]
+
+        asset_class, market = classify_ticker(ticker)
+
+        # 3. Análises
+        tech_indicators = analyze_chart_patterns(ticker, price_df)
+
+        # Dividendos (apenas se fizer sentido)
+        div_metrics = analyze_dividends(ticker, fundamentals, price_df)
+
+        # IA (opcional)
+        ai_result = None
+        if run_ai and ai_calls < max_ai_assets:
+            ai_result = run_ai_technical_analysis(ticker, tech_indicators)
+            ai_calls += 1
+
+        # Monta objeto
+        asset = AssetAnalysis(
+            ticker=ticker,
+            market=market,
+            asset_class=asset_class,
+            current_price=current_price,
+            technical=tech_indicators,
+            ai_analysis=ai_result,
+            dividends=div_metrics
+        )
+        analyzed_assets.append(asset)
+
+    # 4. Scoring e Alocação
+    scored_assets = score_assets(analyzed_assets, strategy)
+    current_value_map = convert_positions_to_value_map(current_positions, portfolio_mode, scored_assets)
+    current_total_value = sum(current_value_map.values())
+    target_total_value = current_total_value + capital
+    final_portfolio = allocate_capital(scored_assets, target_total_value, max_assets=max_portfolio_assets)
+    rebalance_actions = build_rebalance_actions(current_value_map, final_portfolio)
+
+    return scored_assets, final_portfolio, rebalance_actions, current_total_value, target_total_value, ai_calls
+
+
 def main():
     render_header(APP_TITLE, APP_ICON)
     
@@ -161,58 +230,22 @@ def main():
                 st.error("Nenhum ativo selecionado. Verifique os filtros.")
                 return
 
-            analyzed_assets = []
-            ai_calls = 0
             progress_bar = st.progress(0)
-            
-            for idx, ticker in enumerate(tickers):
-                # Atualiza barra de progresso
-                progress_bar.progress((idx + 1) / len(tickers))
-                
-                # 2. Coleta de Dados
-                price_df = get_price_history(ticker, period=period)
-                fundamentals = get_fundamentals(ticker) or {}
-                
-                if price_df.empty and not fundamentals:
-                    continue
-                    
-                current_price = fundamentals.get("current_price", 0.0)
-                if current_price == 0.0 and not price_df.empty:
-                    current_price = price_df['Close'].iloc[-1]
-                    
-                asset_class, market = classify_ticker(ticker)
+            def update_progress(idx, total):
+                progress_bar.progress((idx + 1) / total)
 
-                # 3. Análises
-                tech_indicators = analyze_chart_patterns(ticker, price_df)
-                
-                # Dividendos (apenas se fizer sentido)
-                div_metrics = analyze_dividends(ticker, fundamentals, price_df)
-                
-                # IA (opcional)
-                ai_result = None
-                if run_ai and ai_calls < max_ai_assets:
-                    ai_result = run_ai_technical_analysis(ticker, tech_indicators)
-                    ai_calls += 1
-                
-                # Monta objeto
-                asset = AssetAnalysis(
-                    ticker=ticker,
-                    market=market,
-                    asset_class=asset_class,
-                    current_price=current_price,
-                    technical=tech_indicators,
-                    ai_analysis=ai_result,
-                    dividends=div_metrics
-                )
-                analyzed_assets.append(asset)
-            
-            # 4. Scoring e Alocação
-            scored_assets = score_assets(analyzed_assets, strategy)
-            current_value_map = convert_positions_to_value_map(current_positions, portfolio_mode, scored_assets)
-            current_total_value = sum(current_value_map.values())
-            target_total_value = current_total_value + capital
-            final_portfolio = allocate_capital(scored_assets, target_total_value, max_assets=max_portfolio_assets)
-            rebalance_actions = build_rebalance_actions(current_value_map, final_portfolio)
+            scored_assets, final_portfolio, rebalance_actions, current_total_value, target_total_value, ai_calls = process_portfolio(
+                tickers=tickers,
+                current_positions=current_positions,
+                period=period,
+                run_ai=run_ai,
+                max_ai_assets=max_ai_assets,
+                strategy=strategy,
+                portfolio_mode=portfolio_mode,
+                capital=capital,
+                max_portfolio_assets=max_portfolio_assets,
+                progress_callback=update_progress,
+            )
             
             # 5. Exibição
             st.success("Análise concluída!")
