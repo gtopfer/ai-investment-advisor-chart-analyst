@@ -45,6 +45,23 @@ def test_parse_current_portfolio_ignores_invalid_numeric_values():
     assert positions["AAPL"] == 1500.25
 
 
+def test_parse_current_portfolio_ignores_invalid_tickers():
+    raw = """
+    PETR4.SA, 100
+    <script>, 200
+    DROP TABLE, 300
+    INVALID TICKER, 400
+    AAPL, 500
+    """
+    positions = parse_current_portfolio(raw)
+
+    assert "PETR4.SA" in positions
+    assert "AAPL" in positions
+    assert "<script>" not in positions
+    assert "DROP TABLE" not in positions
+    assert "INVALID TICKER" not in positions
+
+
 def test_convert_positions_quantity_mode_uses_current_price():
     positions = {"PETR4.SA": 10, "AAPL": 2}
     assets = [
