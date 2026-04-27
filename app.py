@@ -133,6 +133,8 @@ def convert_positions_to_value_map(
     return value_map
 
 
+import concurrent.futures
+
 def process_portfolio(
     tickers: list[str],
     current_positions: Dict[str, float],
@@ -147,47 +149,61 @@ def process_portfolio(
 ):
     analyzed_assets = []
     ai_calls = 0
+    ai_futures = {}
 
-    for idx, ticker in enumerate(tickers):
-        if progress_callback:
-            progress_callback(idx, len(tickers))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        for idx, ticker in enumerate(tickers):
+            if progress_callback:
+                progress_callback(idx, len(tickers))
 
-        # 2. Coleta de Dados
-        price_df = get_price_history(ticker, period=period)
-        fundamentals = get_fundamentals(ticker) or {}
+            # 2. Coleta de Dados
+            price_df = get_price_history(ticker, period=period)
+            fundamentals = get_fundamentals(ticker) or {}
 
-        if price_df.empty and not fundamentals:
-            continue
+            if price_df.empty and not fundamentals:
+                continue
 
-        current_price = fundamentals.get("current_price", 0.0)
-        if current_price == 0.0 and not price_df.empty:
-            current_price = price_df['Close'].iloc[-1]
+            current_price = fundamentals.get("current_price", 0.0)
+            if current_price == 0.0 and not price_df.empty:
+                current_price = price_df['Close'].iloc[-1]
 
-        asset_class, market = classify_ticker(ticker)
+            asset_class, market = classify_ticker(ticker)
 
-        # 3. Análises
-        tech_indicators = analyze_chart_patterns(ticker, price_df)
+            # 3. Análises
+            tech_indicators = analyze_chart_patterns(ticker, price_df)
 
-        # Dividendos (apenas se fizer sentido)
-        div_metrics = analyze_dividends(ticker, fundamentals, price_df)
+            # Dividendos (apenas se fizer sentido)
+            div_metrics = analyze_dividends(ticker, fundamentals, price_df)
 
-        # IA (opcional)
-        ai_result = None
-        if run_ai and ai_calls < max_ai_assets:
-            ai_result = run_ai_technical_analysis(ticker, tech_indicators)
-            ai_calls += 1
+            # IA (opcional)
+            future_ai = None
+            if run_ai and ai_calls < max_ai_assets:
+                future_ai = executor.submit(run_ai_technical_analysis, ticker, tech_indicators)
+                ai_calls += 1
 
-        # Monta objeto
-        asset = AssetAnalysis(
-            ticker=ticker,
-            market=market,
-            asset_class=asset_class,
-            current_price=current_price,
-            technical=tech_indicators,
-            ai_analysis=ai_result,
-            dividends=div_metrics
-        )
-        analyzed_assets.append(asset)
+            # Monta objeto (sem resultado de IA por enquanto)
+            asset = AssetAnalysis(
+                ticker=ticker,
+                market=market,
+                asset_class=asset_class,
+                current_price=current_price,
+                technical=tech_indicators,
+                ai_analysis=None,
+                dividends=div_metrics
+            )
+
+            if future_ai:
+                ai_futures[future_ai] = asset
+
+            analyzed_assets.append(asset)
+
+        # Aguarda as chamadas da IA e atribui os resultados
+        for future in concurrent.futures.as_completed(ai_futures):
+            asset = ai_futures[future]
+            try:
+                asset.ai_analysis = future.result()
+            except Exception as e:
+                print(f"Erro ao processar IA para {asset.ticker}: {e}")
 
     # 4. Scoring e Alocação
     scored_assets = score_assets(analyzed_assets, strategy)
