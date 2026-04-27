@@ -34,6 +34,17 @@ def test_parse_current_portfolio_accepts_multiple_separators():
     assert positions["BTC-USD"] == 0.25
 
 
+def test_parse_current_portfolio_ignores_invalid_numeric_values():
+    raw = """
+    PETR4.SA, invalid_value
+    AAPL:1500.25
+    """
+    positions = parse_current_portfolio(raw)
+
+    assert "PETR4.SA" not in positions
+    assert positions["AAPL"] == 1500.25
+
+
 def test_convert_positions_quantity_mode_uses_current_price():
     positions = {"PETR4.SA": 10, "AAPL": 2}
     assets = [
