@@ -133,18 +133,17 @@ def convert_positions_to_value_map(
     return value_map
 
 
-def process_portfolio(
+def analyze_assets(
     tickers: list[str],
-    current_positions: Dict[str, float],
     period: str,
     run_ai: bool,
     max_ai_assets: int,
-    strategy: str,
-    portfolio_mode: str,
-    capital: float,
-    max_portfolio_assets: int,
     progress_callback=None,
 ):
+    """
+    Executa a coleta de dados e as análises (técnica, dividendos, IA)
+    para uma lista de ativos.
+    """
     analyzed_assets = []
     ai_calls = 0
 
@@ -189,6 +188,25 @@ def process_portfolio(
         )
         analyzed_assets.append(asset)
 
+    return analyzed_assets, ai_calls
+
+
+def process_portfolio(
+    tickers: list[str],
+    current_positions: Dict[str, float],
+    period: str,
+    run_ai: bool,
+    max_ai_assets: int,
+    strategy: str,
+    portfolio_mode: str,
+    capital: float,
+    max_portfolio_assets: int,
+    progress_callback=None,
+):
+    analyzed_assets, ai_calls = analyze_assets(
+        tickers, period, run_ai, max_ai_assets, progress_callback
+    )
+
     # 4. Scoring e Alocação
     scored_assets = score_assets(analyzed_assets, strategy)
     current_value_map = convert_positions_to_value_map(current_positions, portfolio_mode, scored_assets)
@@ -198,6 +216,66 @@ def process_portfolio(
     rebalance_actions = build_rebalance_actions(current_value_map, final_portfolio)
 
     return scored_assets, final_portfolio, rebalance_actions, current_total_value, target_total_value, ai_calls
+
+
+def handle_generate_portfolio(
+    asset_classes,
+    universe,
+    strategy,
+    capital,
+    period,
+    run_ai,
+    max_ai_assets,
+    portfolio_mode,
+    current_portfolio_text,
+    max_portfolio_assets,
+):
+    with st.spinner("Analisando mercado e processando dados..."):
+
+        # 1. Seleção de Tickers Candidatos
+        tickers = build_candidate_tickers(asset_classes, universe)
+        current_positions = parse_current_portfolio(current_portfolio_text)
+        if current_positions:
+            tickers = list(dict.fromkeys(tickers + list(current_positions.keys())))
+
+        if not tickers:
+            st.error("Nenhum ativo selecionado. Verifique os filtros.")
+            return
+
+        progress_bar = st.progress(0)
+        def update_progress(idx, total):
+            progress_bar.progress((idx + 1) / total)
+
+        scored_assets, final_portfolio, rebalance_actions, current_total_value, target_total_value, ai_calls = process_portfolio(
+            tickers=tickers,
+            current_positions=current_positions,
+            period=period,
+            run_ai=run_ai,
+            max_ai_assets=max_ai_assets,
+            strategy=strategy,
+            portfolio_mode=portfolio_mode,
+            capital=capital,
+            max_portfolio_assets=max_portfolio_assets,
+            progress_callback=update_progress,
+        )
+
+        # 5. Exibição
+        st.success("Análise concluída!")
+        if run_ai:
+            st.caption(f"IA executada em {ai_calls} ativos (limite configurado: {max_ai_assets}).")
+        else:
+            st.caption("IA desativada nesta rodada. Ative na barra lateral se quiser as justificativas da Groq.")
+        display_portfolio(final_portfolio)
+        display_rebalance_plan(rebalance_actions, current_total_value, capital, target_total_value)
+
+        # Detalhes Expandidos (Opcional)
+        with st.expander("Ver Detalhes Técnicos de Todos os Ativos"):
+            for asset in scored_assets:
+                st.markdown(f"**{asset.ticker}** - Score: {asset.total_score:.2f}")
+                if asset.ai_analysis:
+                    st.caption(f"IA: {asset.ai_analysis.short_summary_pt}")
+                st.write(f"RSI: {asset.technical.rsi:.1f} | Tendência: {asset.technical.ema_trend}")
+                st.divider()
 
 
 def main():
@@ -218,52 +296,18 @@ def main():
     ) = render_sidebar()
     
     if st.sidebar.button("Gerar Carteira Recomendada", type="primary"):
-        with st.spinner("Analisando mercado e processando dados..."):
-            
-            # 1. Seleção de Tickers Candidatos
-            tickers = build_candidate_tickers(asset_classes, universe)
-            current_positions = parse_current_portfolio(current_portfolio_text)
-            if current_positions:
-                tickers = list(dict.fromkeys(tickers + list(current_positions.keys())))
-
-            if not tickers:
-                st.error("Nenhum ativo selecionado. Verifique os filtros.")
-                return
-
-            progress_bar = st.progress(0)
-            def update_progress(idx, total):
-                progress_bar.progress((idx + 1) / total)
-
-            scored_assets, final_portfolio, rebalance_actions, current_total_value, target_total_value, ai_calls = process_portfolio(
-                tickers=tickers,
-                current_positions=current_positions,
-                period=period,
-                run_ai=run_ai,
-                max_ai_assets=max_ai_assets,
-                strategy=strategy,
-                portfolio_mode=portfolio_mode,
-                capital=capital,
-                max_portfolio_assets=max_portfolio_assets,
-                progress_callback=update_progress,
-            )
-            
-            # 5. Exibição
-            st.success("Análise concluída!")
-            if run_ai:
-                st.caption(f"IA executada em {ai_calls} ativos (limite configurado: {max_ai_assets}).")
-            else:
-                st.caption("IA desativada nesta rodada. Ative na barra lateral se quiser as justificativas da Groq.")
-            display_portfolio(final_portfolio)
-            display_rebalance_plan(rebalance_actions, current_total_value, capital, target_total_value)
-            
-            # Detalhes Expandidos (Opcional)
-            with st.expander("Ver Detalhes Técnicos de Todos os Ativos"):
-                for asset in scored_assets:
-                    st.markdown(f"**{asset.ticker}** - Score: {asset.total_score:.2f}")
-                    if asset.ai_analysis:
-                        st.caption(f"IA: {asset.ai_analysis.short_summary_pt}")
-                    st.write(f"RSI: {asset.technical.rsi:.1f} | Tendência: {asset.technical.ema_trend}")
-                    st.divider()
+        handle_generate_portfolio(
+            asset_classes,
+            universe,
+            strategy,
+            capital,
+            period,
+            run_ai,
+            max_ai_assets,
+            portfolio_mode,
+            current_portfolio_text,
+            max_portfolio_assets,
+        )
 
     render_disclaimer()
 
