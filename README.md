@@ -181,3 +181,8 @@ Este projeto foi construído com modularidade em mente. Sinta-se à vontade para
 ---
 
 **Desenvolvido por GTopfer, com AI**
+
+
+## Licença
+
+Este projeto está licenciado sob a [GNU General Public License v3.0](LICENSE).
