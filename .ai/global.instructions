@@ -1,0 +1,69 @@
+# Instruções Globais de IA & Padrões de Código
+
+## REGRA ABSOLUTA — FLUXO BASEADO EM ESTADO & SQUAD
+
+**Nunca edite, crie ou modifique arquivos de código diretamente sem passar pela validação de fases.**
+
+Toda e qualquer alteração de código ou documentação é governada por especificações localizadas no diretório `.ai/specs/` e gerenciada pelo arquivo de controle de progresso **`.ai/state.md`**.
+
+### Rotina de Inicialização (Obrigatória no Início de Toda Sessão)
+Toda vez que uma nova interação ou sessão for iniciada, a IA deve:
+1. **Ler o painel de controle** `.ai/state.md` e escanear a pasta `.ai/specs/` para sincronizar o estado.
+2. **Detectar novas specs ou alterações**: 
+   - Se houver novos arquivos em `.ai/specs/` que não estão no `.ai/state.md`, adicione-os com status `draft`.
+   - Se uma especificação existente no `.ai/state.md` foi modificada recentemente pelo usuário, compare os requisitos e, se necessário, retroceda o status do ciclo de vida para a fase adequada (ex: de `tested` para `spec_approved` ou `tech_approved`), notificando o usuário.
+3. **Identificar a tarefa ativa**: Encontre a primeira especificação não finalizada (status diferente de `done`).
+4. **Acionar o Squad Lead**: Chamar `.ai/agents/squad-lead.agent.md` passando a especificação ativa para que ele orquestre as fases de acordo com o status atual.
+
+---
+
+## Ciclo de Vida da Especificação (Fases)
+
+O fluxo orquestrado pelo Squad Lead reage aos status no `.ai/state.md`:
+
+| Status Atual | Fase Ativa | Ação Executada | Próximo Status (Pós-Aprovação) |
+|--------------|------------|----------------|--------------------------------|
+| `draft` | **PM** | Detalha a spec com DoR/DoD em `.ai/template.specs` (copiando-o) e aguarda aprovação humana | `spec_approved` |
+| `spec_approved` | **Architect** | Define/valida stack e cria a spec técnica em `.ai/technical-spec.md` (incluindo diagramas) e aguarda aprovação humana | `tech_approved` |
+| `tech_approved` | **QA (TDD)** | Escreve os cenários de teste BDD/TDD (fase vermelha - falhando) | `test_red` |
+| `test_red` | **Developer** | Implementa o código de produção para fazer os testes passarem e executa o checklist de code review | `code_review` |
+| `code_review` | **QA (Validação)** | Executa os testes automatizados para atestar a estabilidade e ausência de regressões | `tested` |
+| `tested` | **PM (DoD)** | Valida o atendimento de todos os itens do DoD e solicita aceite final | `done` |
+
+> 💡 **Persistência de Sessão**: Se o processo for interrompido, a IA lerá `.ai/state.md` e retomará exatamente do status registrado, sem perder o progresso.
+
+---
+
+## Paradigmas de Engenharia
+Estes quatro paradigmas são inegociáveis e valem para toda tarefa, independente da stack.
+
+### 1. Desenvolvimento Orientado a Spec & BDD
+- Nunca escreva código de produção sem as duas specs correspondentes atualizadas: a de negócio (em `.ai/specs/`) e a técnica (`.ai/technical-spec.md`), acompanhadas por cenários Gherkin em um arquivo `.feature` se houver interação de usuário.
+- Cenários Given/When/Then (Dado/Quando/Então) são a fonte da verdade do comportamento esperado.
+
+### 2. Disciplina de Contexto (estilo RAG)
+- Referencie só os arquivos relevantes para a tarefa ativa — não traga código não relacionado para o contexto.
+- Leia sempre as premissas de design em `.ai/guidelines/design-premises.md`, as definições de arquitetura em `.ai/guidelines/architecture-guidelines.md` e o histórico de decisões em `.ai/technical-spec.md`.
+
+### 3. Engenharia de Harness (Escudo Test-First)
+- Toda feature nova ou refatoração ganha um teste automatizado antes de ser considerada concluída — ver `.ai/skills/tdd.md`.
+- Uma tarefa não está concluída até o harness de testes passar limpo e `.ai/skills/code-review.md` ter sido executado.
+
+### 4. Engenharia de Loop (Execução Autônoma & Autocorreção)
+- Trabalhe num loop Planejar → Escrever → Testar → Avaliar → Refatorar — ver `.ai/skills/autonomous-loop.md`.
+- Pare e escale para o humano após falhas repetidas na mesma causa raiz (máximo 3 tentativas) — ver condições de parada na skill.
+
+---
+
+## Princípios de Desenvolvimento
+1. Escreva código limpo e autoexplicativo, seguindo os princípios SOLID.
+2. Mantenha componentes focados, modulares e de responsabilidade única.
+3. Priorize legibilidade sobre esperteza.
+4. Evite números mágicos ou valores fixos no código; use constantes tipadas ou variáveis de ambiente.
+
+---
+
+## Disciplina de Documentação
+1. Toda especificação concluída (`done`) ganha uma entrada em `docs/CHANGELOG.md` e o link da spec em `docs/README.md`.
+2. Decisões arquiteturais novas ou mudanças de stack devem ser registradas como uma nova entrada (append-only) na seção 9 de `.ai/technical-spec.md`.
+3. O `state.md` deve ser atualizado imediatamente ao fim de cada transição de fase com o novo status e um registro rápido de log.

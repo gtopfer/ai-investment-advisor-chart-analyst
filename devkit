@@ -1,0 +1,585 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+DevKit-AI CLI Tool
+Gerencia a inicialização, criação de especificações, transições de estado e análises de código.
+"""
+
+import os
+import sys
+import shutil
+import re
+import subprocess
+from datetime import datetime
+
+# ANSI colors for styling
+GREEN = "\033[92m"
+BLUE = "\033[94m"
+YELLOW = "\033[93m"
+RED = "\033[91m"
+RESET = "\033[0m"
+BOLD = "\033[1m"
+
+def print_err(msg):
+    print(f"{RED}{msg}{RESET}", file=sys.stderr)
+
+def print_info(msg):
+    print(f"{BLUE}{msg}{RESET}")
+
+def print_success(msg):
+    print(f"{GREEN}{msg}{RESET}")
+
+def get_slug(text):
+    text = text.lower()
+    text = re.sub(r"[^\w\s-]", "", text)
+    text = re.sub(r"[\s_-]+", "_", text)
+    return text.strip("_")
+
+def cmd_init(target_dir):
+    """Copies devkit-ai structure to target_dir."""
+    if not target_dir:
+        target_dir = os.getcwd()
+    else:
+        target_dir = os.path.abspath(target_dir)
+
+    print_info(f"Inicializando DevKit-AI em: {target_dir}")
+
+    source_dir = os.path.dirname(os.path.abspath(__file__))
+    to_copy_dirs = [".ai", "docs"]
+    to_copy_files = ["CLAUDE.md", "GEMINI.md", "devkit"]
+
+    if os.path.abspath(source_dir) == os.path.abspath(target_dir):
+        print_err("Erro: O diretório de destino é o próprio repositório do devkit-ai.")
+        sys.exit(1)
+
+    os.makedirs(target_dir, exist_ok=True)
+
+    for item in to_copy_dirs:
+        src_path = os.path.join(source_dir, item)
+        dst_path = os.path.join(target_dir, item)
+        if os.path.exists(src_path):
+            if os.path.exists(dst_path):
+                print(f"{YELLOW}Aviso: {item} já existe em {target_dir}. Sobrescrevendo...{RESET}")
+                shutil.rmtree(dst_path)
+            shutil.copytree(src_path, dst_path)
+            print(f"Copiado diretório: {item}")
+
+    for item in to_copy_files:
+        src_path = os.path.join(source_dir, item)
+        dst_path = os.path.join(target_dir, item)
+        if os.path.exists(src_path):
+            if os.path.exists(dst_path):
+                print(f"{YELLOW}Aviso: {item} já existe em {target_dir}. Sobrescrevendo...{RESET}")
+            shutil.copy2(src_path, dst_path)
+            if item == "devkit":
+                os.chmod(dst_path, 0o755)
+            print(f"Copiado arquivo: {item}")
+
+    print_success(f"\n{BOLD}DevKit-AI inicializado com sucesso em {target_dir}!{RESET}")
+    print("Próximo passo sugerido: crie uma nova especificação rodando `./devkit propose`")
+
+def cmd_propose():
+    """Interactive wizard to create a new spec and register it in state.md."""
+    ai_dir = os.path.join(os.getcwd(), ".ai")
+    specs_dir = os.path.join(ai_dir, "specs")
+    state_file = os.path.join(ai_dir, "state.md")
+
+    if not os.path.exists(ai_dir) or not os.path.exists(state_file):
+        print_err("Erro: Diretório '.ai' ou '.ai/state.md' não encontrado.")
+        print_err("Por favor, execute './devkit init' primeiro ou certifique-se de estar na raiz do projeto.")
+        sys.exit(1)
+
+    os.makedirs(specs_dir, exist_ok=True)
+
+    print(f"\n{BOLD}{BLUE}=== WIZARD DE ESPECIFICAÇÃO DE FEATURE ==={RESET}\n")
+
+    title = input("Digite o título da funcionalidade: ").strip()
+    if not title:
+        print_err("Erro: O título não pode ser vazio.")
+        sys.exit(1)
+
+    print("\n--- Descreva a User Story Básica ---")
+    persona = input("Como um(a) (ex: usuário logado): ").strip()
+    action = input("Eu quero (ex: filtrar tickets por status): ").strip()
+    value = input("Para que eu possa (ex: encontrar itens mais rápido): ").strip()
+
+    print("\n--- Digite os Requisitos Principais (uma linha por requisito, linha vazia encerra) ---")
+    requirements = []
+    while True:
+        req = input(f"Requisito {len(requirements)+1}: ").strip()
+        if not req:
+            break
+        requirements.append(req)
+
+    existing_specs = []
+    for f in os.listdir(specs_dir):
+        if f.endswith(".md") and f != "README.md":
+            match = re.match(r"^(\d+)_", f)
+            if match:
+                existing_specs.append(int(match.group(1)))
+
+    next_num = max(existing_specs) + 1 if existing_specs else 1
+    seq_str = f"{next_num:03d}"
+    spec_code = f"SPEC-{seq_str}"
+    
+    file_slug = get_slug(title)
+    filename = f"{seq_str}_{file_slug}.md"
+    filepath = os.path.join(specs_dir, filename)
+
+    spec_content = f"""# Especificação de Feature: {title}
+
+## 1. Contexto & Valor de Negócio
+- **Como um(a)** {persona or "[persona]"}
+- **Eu quero** {action or "[ação]"}
+- **Para que** {value or "[valor]"}
+
+## 2. Requisitos & Restrições
+"""
+    if requirements:
+        for r in requirements:
+            spec_content += f"- Requisito: {r}\n"
+    else:
+        spec_content += "- Requisito 1: [Descreva o requisito principal aqui]\n"
+
+    spec_content += """
+## 3. Expectativas de UI/UX (se aplicável)
+- (A preencher cooperativamente com a IA no chat)
+
+## 4. Checklist Técnico / Notas
+- (A preencher cooperativamente com a IA no chat)
+
+## 5. Definition of Ready (DoR — Pronto para Começar)
+- [ ] O problema de negócio e o resultado desejado estão claros
+- [ ] Dependências externas (APIs, credenciais, dados) estão disponíveis ou explicitamente adiadas
+- [ ] Perguntas em aberto foram respondidas por quem pediu
+
+## 6. Definition of Done (DoD — Pronto/Concluído)
+- [ ] Todos os requisitos da seção 2 estão atendidos
+- [ ] Os critérios de aceitação (cenários Gherkin em `.ai/features.feature` ou equivalente) passam
+- [ ] Documentação atualizada: entrada adicionada em `docs/CHANGELOG.md`; nova entrada na seção 9 de `.ai/technical-spec.md` se uma decisão arquitetural foi tomada
+- [ ] Nenhuma regressão conhecida em funcionalidades adjacentes
+"""
+
+    try:
+        with open(filepath, "w", encoding="utf-8") as sf:
+            sf.write(spec_content)
+    except Exception as e:
+        print_err(f"Erro ao salvar arquivo de especificação: {e}")
+        sys.exit(1)
+
+    try:
+        with open(state_file, "r", encoding="utf-8") as f:
+            state_content = f.read()
+    except Exception as e:
+        print_err(f"Erro ao ler arquivo de estado: {e}")
+        sys.exit(1)
+
+    new_row = f"| {spec_code} | {title} | `.ai/specs/{filename}` | `draft` | `pm` | {datetime.now().strftime('%Y-%m-%d')} |"
+    
+    lines = state_content.splitlines()
+    table_idx = -1
+    for idx, l in enumerate(lines):
+        if l.strip().startswith("|") and "SPEC-" in l:
+            table_idx = idx
+
+    if table_idx != -1:
+        lines.insert(table_idx + 1, new_row)
+    else:
+        for idx, l in enumerate(lines):
+            if l.strip().startswith("|") and "---" in l:
+                table_idx = idx
+                break
+        if table_idx != -1:
+            lines.insert(table_idx + 1, new_row)
+        else:
+            lines.append(new_row)
+
+    log_line = f"* **{datetime.now().strftime('%Y-%m-%d')}**: Nova especificação registrada via CLI (`{filename}`). Status definido como `draft`."
+    log_inserted = False
+    for idx, l in enumerate(lines):
+        if "Histórico de Execuções Recentes" in l:
+            lines.insert(idx + 2, log_line)
+            log_inserted = True
+            break
+    if not log_inserted:
+        lines.append(log_line)
+
+    new_state_content = "\n".join(lines) + "\n"
+
+    try:
+        with open(state_file, "w", encoding="utf-8") as f:
+            f.write(new_state_content)
+    except Exception as e:
+        print_err(f"Erro ao salvar arquivo de estado: {e}")
+        sys.exit(1)
+
+    print_success(f"\n{BOLD}✅ Especificação '{spec_code}' criada com sucesso!{RESET}")
+    print(f"Caminho: {BLUE}.ai/specs/{filename}{RESET}")
+    print(f"Registrada em: {BLUE}.ai/state.md{RESET}")
+    print("\n" + "=" * 60)
+    print(f"{BOLD}Próximo passo no Chat da IA:{RESET}")
+    print(f"Abra a sua interface de chat com a IA e envie a seguinte mensagem:")
+    print(f"{YELLOW}'Vamos refinar e detalhar os requisitos da {spec_code} ({title}) juntos?'{RESET}")
+    print("=" * 60 + "\n")
+
+def cmd_status():
+    """Reads state.md and prints a beautifully aligned status table."""
+    ai_dir = os.path.join(os.getcwd(), ".ai")
+    state_file = os.path.join(ai_dir, "state.md")
+
+    if not os.path.exists(state_file):
+        print_err("Erro: Arquivo '.ai/state.md' não encontrado.")
+        sys.exit(1)
+
+    try:
+        with open(state_file, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception as e:
+        print_err(f"Erro ao ler arquivo de estado: {e}")
+        sys.exit(1)
+
+    print(f"\n{BOLD}{BLUE}=== STATUS DO DESENVOLVIMENTO (Task Tracker) ==={RESET}\n")
+
+    table_rows = []
+    log_lines = []
+    
+    # Parse lines to separate table and logs
+    in_logs = False
+    for line in content.splitlines():
+        if "Histórico de Execuções Recentes" in line:
+            in_logs = True
+            continue
+        if in_logs:
+            if line.strip().startswith("*"):
+                log_lines.append(line.strip())
+            continue
+
+        if line.strip().startswith("|"):
+            # Skip headers
+            if "Código" in line or "---" in line:
+                continue
+            row = [x.strip() for x in line.split("|")[1:-1]]
+            if len(row) >= 5:
+                # Clean up values
+                row[0] = row[0].strip() # Code
+                row[1] = row[1].strip() # Title
+                row[3] = row[3].strip("` ") # Status
+                row[4] = row[4].strip("` ") # Phase
+                table_rows.append(row)
+
+    if not table_rows:
+        print("Nenhuma especificação ativa cadastrada no state.md.")
+    else:
+        # Determine column widths
+        w_code = max(len(r[0]) for r in table_rows)
+        w_code = max(w_code, len("Código"))
+        
+        w_title = max(len(r[1]) for r in table_rows)
+        w_title = max(w_title, len("Título da Spec"))
+        w_title = min(w_title, 40) # cap title length
+        
+        w_status = max(len(r[3]) for r in table_rows)
+        w_status = max(w_status, len("Status Atual"))
+        
+        w_phase = max(len(r[4]) for r in table_rows)
+        w_phase = max(w_phase, len("Fase Ativa"))
+
+        sep = f"+-{'-'*w_code}-+-{'-'*w_title}-+-{'-'*w_status}-+-{'-'*w_phase}-+"
+        
+        print(sep)
+        print(f"| {BOLD}{'Código':<{w_code}}{RESET} | {BOLD}{'Título da Spec':<{w_title}}{RESET} | {BOLD}{'Status Atual':<{w_status}}{RESET} | {BOLD}{'Fase Ativa':<{w_phase}}{RESET} |")
+        print(sep)
+        for r in table_rows:
+            code, title, path, status, phase = r[0], r[1], r[2], r[3], r[4]
+            if len(title) > w_title:
+                title = title[:w_title-3] + "..."
+            status_color = GREEN if status == "done" else (YELLOW if status == "draft" else BLUE)
+            print(f"| {code:<{w_code}} | {title:<{w_title}} | {status_color}{status:<{w_status}}{RESET} | {phase:<{w_phase}} |")
+        print(sep)
+
+    if log_lines:
+        print(f"\n{BOLD}Histórico de Execuções Recentes{RESET}")
+        print("-" * 30)
+        for log in log_lines[:10]: # Print top 10 logs
+            print(log)
+    print()
+
+def cmd_approve():
+    """Transitions the active task to the next phase in state.md."""
+    ai_dir = os.path.join(os.getcwd(), ".ai")
+    state_file = os.path.join(ai_dir, "state.md")
+
+    if not os.path.exists(state_file):
+        print_err("Erro: Arquivo '.ai/state.md' não encontrado.")
+        sys.exit(1)
+
+    try:
+        with open(state_file, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception as e:
+        print_err(f"Erro ao ler arquivo de estado: {e}")
+        sys.exit(1)
+
+    lines = content.splitlines()
+    active_row_idx = -1
+    active_row = []
+
+    for idx, line in enumerate(lines):
+        if line.strip().startswith("|") and not ("Código" in line or "---" in line):
+            row = [x.strip() for x in line.split("|")[1:-1]]
+            if len(row) >= 4 and row[3].strip("` ") != "done":
+                active_row_idx = idx
+                active_row = row
+                break
+
+    if active_row_idx == -1:
+        print_info("Nenhuma especificação ativa pendente de aprovação.")
+        return
+
+    code, title, path, status, phase = active_row[0], active_row[1], active_row[2], active_row[3].strip("` "), active_row[4].strip("` ")
+
+    state_transitions = {
+        "draft": ("spec_approved", "architect"),
+        "spec_approved": ("tech_approved", "qa_tdd"),
+        "tech_approved": ("test_red", "developer"),
+        "test_red": ("code_review", "qa_validation"),
+        "code_review": ("tested", "pm_dod"),
+        "tested": ("done", "done")
+    }
+
+    if status not in state_transitions:
+        print_err(f"Erro: Status '{status}' desconhecido para a especificação {code}.")
+        sys.exit(1)
+
+    new_status, new_phase = state_transitions[status]
+
+    # Update row
+    updated_row = f"| {code} | {title} | {path} | `{new_status}` | `{new_phase}` | {datetime.now().strftime('%Y-%m-%d')} |"
+    lines[active_row_idx] = updated_row
+
+    # Append to log
+    log_line = f"* **{datetime.now().strftime('%Y-%m-%d')}**: [{code}] Aprovado e transicionado: `{status}` ➔ `{new_status}` (Próxima Fase: `{new_phase}`)."
+    log_inserted = False
+    for idx, l in enumerate(lines):
+        if "Histórico de Execuções Recentes" in l:
+            lines.insert(idx + 2, log_line)
+            log_inserted = True
+            break
+    if not log_inserted:
+        lines.append(log_line)
+
+    new_state_content = "\n".join(lines) + "\n"
+
+    try:
+        with open(state_file, "w", encoding="utf-8") as f:
+            f.write(new_state_content)
+    except Exception as e:
+        print_err(f"Erro ao atualizar arquivo de estado: {e}")
+        sys.exit(1)
+
+    print_success(f"\n{BOLD}✅ [{code}] Aprovado e Transicionado!{RESET}")
+    print(f"Status: {YELLOW}`{status}` ➔ `{new_status}`{RESET}")
+    print(f"Fase Ativa: {BLUE}`{new_phase}`{RESET}\n")
+
+def check_todos_in_files(files):
+    """Scans files for forbidden comment patterns (TODO, FIXME, placeholders)."""
+    violations = []
+    pattern = re.compile(r"\b(TODO|FIXME)\b|//\s*(o resto do código|resto do|rest of the code)", re.IGNORECASE)
+
+    for f in files:
+        if not os.path.exists(f) or os.path.isdir(f):
+            continue
+        try:
+            with open(f, "r", encoding="utf-8", errors="ignore") as fh:
+                for line_num, line in enumerate(fh, 1):
+                    if pattern.search(line):
+                        violations.append((f, line_num, line.strip()))
+        except Exception:
+            pass
+    return violations
+
+def get_modified_files():
+    """Identifies modified files in git, or falls back to scan workspace directory."""
+    files = []
+    if os.path.exists(".git"):
+        try:
+            out = subprocess.check_output(["git", "status", "--porcelain"], stderr=subprocess.DEVNULL)
+            for line in out.decode("utf-8").splitlines():
+                if len(line) > 3:
+                    file_path = line[3:].strip()
+                    if line[0] != 'D' and os.path.exists(file_path):
+                        files.append(file_path)
+            return files
+        except Exception:
+            pass
+
+    # Fallback scan
+    skip_folders = {".git", "node_modules", "__pycache__", ".ai", "docs", "venv", ".venv", "dist", "build"}
+    for root, dirs, filenames in os.walk("."):
+        dirs[:] = [d for d in dirs if d not in skip_folders]
+        for f in filenames:
+            ext = os.path.splitext(f)[1]
+            if ext in (".py", ".js", ".ts", ".tsx", ".go", ".rs", ".java", ".cpp", ".c", ".h", ".cs", ".php", ".css", ".html"):
+                files.append(os.path.relpath(os.path.join(root, f), "."))
+    return files
+
+def cmd_review():
+    """Detects stack, runs linter, checks types, executes tests, scans for TODOs and formats output."""
+    print_info("Iniciando Validação e Code Review...\n")
+    
+    modified_files = get_modified_files()
+    todo_violations = check_todos_in_files(modified_files)
+
+    stack = "unknown"
+    lint_cmd = None
+    type_cmd = None
+    test_cmd = None
+
+    if os.path.exists("package.json"):
+        stack = "Node.js (JS/TS)"
+        try:
+            with open("package.json", "r", encoding="utf-8") as pf:
+                pj = pf.read()
+            if '"lint"' in pj:
+                lint_cmd = ["npm", "run", "lint"]
+            if '"typecheck"' in pj:
+                type_cmd = ["npm", "run", "typecheck"]
+            elif os.path.exists("tsconfig.json"):
+                type_cmd = ["npx", "tsc", "--noEmit"]
+            if '"test"' in pj:
+                test_cmd = ["npm", "test"]
+        except Exception:
+            pass
+    elif os.path.exists("requirements.txt") or os.path.exists("pyproject.toml") or any(f.endswith(".py") for f in os.listdir(".")):
+        stack = "Python"
+        if shutil.which("ruff"):
+            lint_cmd = ["ruff", "check"]
+        elif shutil.which("flake8"):
+            lint_cmd = ["flake8"]
+        if shutil.which("mypy") and (os.path.exists("pyproject.toml") or os.path.exists("mypy.ini")):
+            type_cmd = ["mypy", "."]
+        if shutil.which("pytest"):
+            test_cmd = ["pytest"]
+        elif os.path.exists("tests"):
+            test_cmd = ["python", "-m", "unittest", "discover"]
+    elif os.path.exists("Cargo.toml"):
+        stack = "Rust"
+        lint_cmd = ["cargo", "clippy"]
+        type_cmd = ["cargo", "check"]
+        test_cmd = ["cargo", "test"]
+    elif os.path.exists("go.mod"):
+        stack = "Go"
+        type_cmd = ["go", "vet"]
+        test_cmd = ["go", "test", "./..."]
+
+    print_info(f"Stack Detectada: {BOLD}{stack}{RESET}")
+
+    lint_success = True
+    lint_out = ""
+    if lint_cmd:
+        print_info(f"Executando Linter: {' '.join(lint_cmd)}...")
+        res = subprocess.run(lint_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        lint_success = (res.returncode == 0)
+        lint_out = (res.stdout + res.stderr).decode("utf-8")
+
+    type_success = True
+    type_out = ""
+    if type_cmd:
+        print_info(f"Executando Typecheck/Build: {' '.join(type_cmd)}...")
+        res = subprocess.run(type_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        type_success = (res.returncode == 0)
+        type_out = (res.stdout + res.stderr).decode("utf-8")
+
+    test_success = True
+    test_out = ""
+    if test_cmd:
+        print_info(f"Executando Testes: {' '.join(test_cmd)}...")
+        res = subprocess.run(test_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        test_success = (res.returncode == 0)
+        test_out = (res.stdout + res.stderr).decode("utf-8")
+
+    passed = (not todo_violations) and lint_success and type_success and test_success
+
+    report = []
+    report.append(f"# Code Review — {f'{GREEN}{BOLD}APROVADO{RESET}' if passed else f'{RED}{BOLD}REPROVADO{RESET}'}")
+    report.append(f"**Stack Identificada**: {stack}")
+    report.append(f"**Data da Execução**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    report.append("\n## Checklists de Validação")
+
+    if todo_violations:
+        report.append(f"- ❌ **Marcadores TODO/FIXME/Placeholders**: {len(todo_violations)} encontrado(s)")
+        for f, line, text in todo_violations:
+            report.append(f"  - `{f}:{line}` ➔ `{text}`")
+    else:
+        report.append("- ✅ **Marcadores TODO/FIXME/Placeholders**: Nenhum encontrado")
+
+    if lint_cmd:
+        status_icon = "✅" if lint_success else "❌"
+        report.append(f"- {status_icon} **Linter**: {f'OK' if lint_success else 'Falhou'}")
+        if not lint_success:
+            report.append("```\n" + lint_out[:500] + ("\n... [truncado]" if len(lint_out) > 500 else "") + "\n```")
+    else:
+        report.append("- ⚠️ **Linter**: Nenhum linter configurado/detectado")
+
+    if type_cmd:
+        status_icon = "✅" if type_success else "❌"
+        report.append(f"- {status_icon} **Build / Typecheck**: {f'OK' if type_success else 'Falhou'}")
+        if not type_success:
+            report.append("```\n" + type_out[:500] + ("\n... [truncado]" if len(type_out) > 500 else "") + "\n```")
+    else:
+        report.append("- ⚠️ **Build / Typecheck**: Nenhuma verificação de tipo configurada")
+
+    if test_cmd:
+        status_icon = "✅" if test_success else "❌"
+        report.append(f"- {status_icon} **Suíte de Testes**: {f'Passou' if test_success else 'Falhou'}")
+        if not test_success:
+            report.append("```\n" + test_out[:500] + ("\n... [truncado]" if len(test_out) > 500 else "") + "\n```")
+    else:
+        report.append("- ⚠️ **Suíte de Testes**: Nenhuma suíte de testes detectada")
+
+    print("\n" + "=" * 50)
+    print("\n".join(report))
+    print("=" * 50 + "\n")
+
+    sys.exit(0 if passed else 1)
+
+def print_help():
+    print(f"""{BOLD}Uso:{RESET} ./devkit <comando> [argumentos]
+
+{BOLD}Comandos disponíveis:{RESET}
+  {BLUE}init [diretório]{RESET}   Inicializa a estrutura do devkit no diretório alvo (padrão: diretório atual)
+  {BLUE}propose{RESET}            Wizard interativo para criar uma especificação cooperativa
+  {BLUE}status{RESET}             Lista as especificações ativas e seus status atuais
+  {BLUE}approve{RESET}            Transiciona a especificação ativa para a próxima fase no state.md
+  {BLUE}review{RESET}             Executa linter, typecheck, testes e busca por TODOs/placeholders
+  {BLUE}help{RESET}               Mostra esta mensagem de ajuda
+""")
+
+def main():
+    if len(sys.argv) < 2:
+        print_help()
+        sys.exit(1)
+
+    command = sys.argv[1].lower()
+
+    if command == "init":
+        target = sys.argv[2] if len(sys.argv) > 2 else None
+        cmd_init(target)
+    elif command == "propose":
+        cmd_propose()
+    elif command == "status":
+        cmd_status()
+    elif command == "approve":
+        cmd_approve()
+    elif command == "review":
+        cmd_review()
+    elif command in ("help", "--help", "-h"):
+        print_help()
+    else:
+        print_err(f"Erro: Comando desconhecido '{command}'")
+        print_help()
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
