@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 from models.schemas import AssetAnalysis
-from config.config import STRATEGY_WEIGHTS, RSI_OVERSOLD, RSI_OVERBOUGHT
+from config.config import STRATEGY_WEIGHTS
 
 def score_assets(assets: List[AssetAnalysis], strategy: str) -> List[AssetAnalysis]:
     """
@@ -14,10 +14,12 @@ def score_assets(assets: List[AssetAnalysis], strategy: str) -> List[AssetAnalys
         # Score Técnico (0-1)
         tech_score = 0.5 # Base neutra
         if asset.technical:
-            # RSI
-            if asset.technical.rsi < RSI_OVERSOLD: tech_score += 0.2
-            elif asset.technical.rsi > RSI_OVERBOUGHT: tech_score -= 0.2
-            
+            # RSI: contribuição proporcional à distância do centro neutro (50),
+            # em vez de bônus fixo só quando cruza os limiares de sobrecompra/
+            # sobrevenda. RSI 25 e RSI 29 (ambos < 30) deixam de pesar igual.
+            rsi_component = ((50.0 - asset.technical.rsi) / 50.0) * 0.2
+            tech_score += max(-0.2, min(0.2, rsi_component))
+
             # MACD
             if asset.technical.macd_signal == "bullish": tech_score += 0.2
             elif asset.technical.macd_signal == "bearish": tech_score -= 0.2

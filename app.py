@@ -1,5 +1,5 @@
 import streamlit as st
-from typing import Dict, List
+from typing import Dict, List, Optional
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
@@ -23,7 +23,7 @@ from ui.layout import (
     display_rebalance_plan,
     render_disclaimer,
 )
-from data_fetcher.market_data import get_price_history, get_fundamentals
+from data_fetcher.market_data import get_price_history, get_fundamentals, get_dividend_history
 from analysis.technical_analysis import analyze_chart_patterns
 from analysis.dividend_analysis import analyze_dividends
 from analysis.ai_chart_engine import run_ai_technical_analysis
@@ -31,9 +31,15 @@ from allocator.portfolio_allocator import score_assets, allocate_capital, build_
 from models.schemas import AssetAnalysis
 
 
+_BR_FII_SUFFIX_PATTERN = re.compile(r"1[12]B?\.SA$")
+_US_STOCK_PATTERN = re.compile(r"^[A-Z]{1,5}$")
+
+
 def classify_ticker(ticker: str) -> tuple[str, str]:
     """
     Best-effort classificação de classe e mercado com base em heurísticas simples.
+    Ativos fora das listas padrão (ex.: digitados manualmente na carteira atual)
+    caem nos fallbacks por padrão de sufixo/formato antes de "Desconhecido".
     """
     if ticker in DEFAULT_TICKERS_BR_FIIS:
         return "FIIs", "BR"
@@ -48,7 +54,13 @@ def classify_ticker(ticker: str) -> tuple[str, str]:
     if ticker in DEFAULT_TICKERS_CRYPTO or "-USD" in ticker:
         return "Cripto", "CRYPTO"
     if ticker.endswith(".SA"):
+        # FIIs brasileiros seguem o padrão "XXXX11.SA"/"XXXX12.SA" (fallback
+        # para tickers fora da lista padrão, ex.: digitados na carteira atual)
+        if _BR_FII_SUFFIX_PATTERN.search(ticker):
+            return "FIIs", "BR"
         return "Ações", "BR"
+    if _US_STOCK_PATTERN.match(ticker):
+        return "Ações", "US"
     return "Desconhecido", "US/CRYPTO"
 
 
@@ -151,7 +163,8 @@ def _process_single_ticker(ticker: str, period: str):
 
     asset_class, market = classify_ticker(ticker)
     tech_indicators = analyze_chart_patterns(ticker, price_df)
-    div_metrics = analyze_dividends(ticker, fundamentals, price_df)
+    dividend_history = get_dividend_history(ticker)
+    div_metrics = analyze_dividends(ticker, fundamentals, price_df, dividend_history)
 
     return AssetAnalysis(
         ticker=ticker,
@@ -162,6 +175,24 @@ def _process_single_ticker(ticker: str, period: str):
         ai_analysis=None,
         dividends=div_metrics
     )
+
+
+def _split_results(
+    tickers: list[str],
+    results: Dict[str, Optional[AssetAnalysis]],
+) -> tuple[List[AssetAnalysis], List[str]]:
+    """
+    Separa resultados em (ativos analisados, tickers que falharam),
+    preservando a ordem original de `tickers`.
+    """
+    analyzed_assets: List[AssetAnalysis] = []
+    failed_tickers: List[str] = []
+    for ticker in tickers:
+        if results[ticker] is not None:
+            analyzed_assets.append(results[ticker])
+        else:
+            failed_tickers.append(ticker)
+    return analyzed_assets, failed_tickers
 
 
 def analyze_assets(
@@ -187,10 +218,9 @@ def analyze_assets(
             st.warning(f"Limite de chamadas IA por sessão ({MAX_AI_CALLS_PER_SESSION}) atingido. A análise com IA foi desativada.")
             run_ai = False
 
-    analyzed_assets = []
     ai_calls = 0
     completed_count = 0
-    results = {ticker: None for ticker in tickers}
+    results: Dict[str, Optional[AssetAnalysis]] = {ticker: None for ticker in tickers}
     ctx = get_script_run_ctx()
 
     def _process_with_context(ticker_arg, period_arg, run_ctx):
@@ -217,10 +247,8 @@ def analyze_assets(
             except Exception as e:
                 print(f"Erro ao processar {ticker}: {e}")
 
-    # Reconstrói a lista preservando a ordem original dos tickers
-    for ticker in tickers:
-        if results[ticker] is not None:
-            analyzed_assets.append(results[ticker])
+    # Reconstrói a lista preservando a ordem original dos tickers e separa falhas
+    analyzed_assets, failed_tickers = _split_results(tickers, results)
 
     # IA executada sequencialmente para respeitar limite global de chamadas
     if run_ai:
@@ -231,7 +259,7 @@ def analyze_assets(
             ai_calls += 1
             st.session_state.ai_calls_session += 1
 
-    return analyzed_assets, ai_calls
+    return analyzed_assets, ai_calls, failed_tickers
 
 
 def process_portfolio(
@@ -247,7 +275,7 @@ def process_portfolio(
     ai_password: str = "",
     progress_callback=None,
 ):
-    analyzed_assets, ai_calls = analyze_assets(
+    analyzed_assets, ai_calls, failed_tickers = analyze_assets(
         tickers, period, run_ai, max_ai_assets, ai_password, progress_callback
     )
 
@@ -258,7 +286,7 @@ def process_portfolio(
     final_portfolio = allocate_capital(scored_assets, target_total_value, max_assets=max_portfolio_assets)
     rebalance_actions = build_rebalance_actions(current_value_map, final_portfolio)
 
-    return scored_assets, final_portfolio, rebalance_actions, current_total_value, target_total_value, ai_calls
+    return scored_assets, final_portfolio, rebalance_actions, current_total_value, target_total_value, ai_calls, failed_tickers
 
 
 def handle_generate_portfolio(
@@ -289,7 +317,7 @@ def handle_generate_portfolio(
         def update_progress(idx, total):
             progress_bar.progress((idx + 1) / total)
 
-        scored_assets, final_portfolio, rebalance_actions, current_total_value, target_total_value, ai_calls = process_portfolio(
+        scored_assets, final_portfolio, rebalance_actions, current_total_value, target_total_value, ai_calls, failed_tickers = process_portfolio(
             tickers=tickers,
             current_positions=current_positions,
             period=period,
@@ -304,6 +332,11 @@ def handle_generate_portfolio(
         )
 
         st.success("Análise concluída!")
+        if failed_tickers:
+            st.warning(
+                f"Não foi possível obter dados para: {', '.join(failed_tickers)}. "
+                "Podem estar indisponíveis na fonte de dados ou o ticker está incorreto."
+            )
         if run_ai:
             st.caption(f"IA executada em {ai_calls} ativos (limite configurado: {max_ai_assets}).")
         else:

@@ -37,6 +37,30 @@ def test_score_assets_uses_ai_boost():
     assert scored.recommendation in {"Compra", "Aguardar", "Venda/Evitar"}
 
 
+def test_score_assets_rsi_contribution_is_proportional():
+    # Antes, qualquer RSI < 30 (RSI_OVERSOLD) dava o mesmo bônus fixo de +0.2.
+    # RSI 20 (bem mais sobrevendido) deve pontuar mais que RSI 29 agora.
+    deeply_oversold = AssetAnalysis(
+        ticker="DEEP",
+        market="BR",
+        asset_class="Ações",
+        current_price=10.0,
+        technical=_fake_indicators(rsi=20.0, macd_signal="neutral", ema_trend="neutral"),
+    )
+    barely_oversold = AssetAnalysis(
+        ticker="BARELY",
+        market="BR",
+        asset_class="Ações",
+        current_price=10.0,
+        technical=_fake_indicators(rsi=29.0, macd_signal="neutral", ema_trend="neutral"),
+    )
+
+    scored = score_assets([deeply_oversold, barely_oversold], strategy="Growth")
+    scores_by_ticker = {a.ticker: a.technical_score for a in scored}
+
+    assert scores_by_ticker["DEEP"] > scores_by_ticker["BARELY"]
+
+
 def test_allocate_capital_normalizes_weights():
     asset_1 = AssetAnalysis(
         ticker="TEST1",

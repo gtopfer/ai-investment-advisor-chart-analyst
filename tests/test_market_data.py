@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 from unittest.mock import patch, MagicMock, PropertyMock
-from data_fetcher.market_data import get_price_history, get_fundamentals
+from data_fetcher.market_data import get_price_history, get_fundamentals, get_dividend_history
 import streamlit as st
 
 @pytest.fixture(autouse=True)
@@ -123,6 +123,41 @@ def test_get_fundamentals_none_dividend_yield(mock_yf_ticker):
     result = get_fundamentals("TEST")
 
     assert result["dividend_yield"] == 0.0
+
+def test_get_fundamentals_normalizes_percent_dividend_yield(mock_yf_ticker):
+    # Algumas versões/tickers do yfinance retornam DY como percentual puro (5.0 = 5%)
+    # em vez de fração (0.05) -- ambos precisam virar 0.05 na saída.
+    mock_info = {
+        "dividendYield": 5.0,
+        "currency": "BRL",
+        "longName": "Test Company"
+    }
+    mock_ticker_instance = mock_yf_ticker.return_value
+    type(mock_ticker_instance).info = PropertyMock(return_value=mock_info)
+
+    result = get_fundamentals("TEST")
+
+    assert result["dividend_yield"] == pytest.approx(0.05)
+
+def test_get_dividend_history_success(mock_yf_ticker):
+    dates = pd.date_range("2023-01-01", periods=4, freq="YE")
+    mock_series = pd.Series([0.5, 0.5, 0.6, 0.6], index=dates)
+    mock_ticker_instance = mock_yf_ticker.return_value
+    type(mock_ticker_instance).dividends = PropertyMock(return_value=mock_series)
+
+    result = get_dividend_history("TEST")
+
+    pd.testing.assert_series_equal(result, mock_series)
+
+def test_get_dividend_history_exception(mock_yf_ticker, capsys):
+    mock_ticker_instance = mock_yf_ticker.return_value
+    type(mock_ticker_instance).dividends = PropertyMock(side_effect=Exception("API Error"))
+
+    result = get_dividend_history("TEST")
+
+    assert result.empty
+    captured = capsys.readouterr()
+    assert "Erro ao buscar histórico de dividendos para TEST: API Error" in captured.out
 
 def test_get_fundamentals_exception(mock_yf_ticker, capsys):
     mock_ticker_instance = mock_yf_ticker.return_value
