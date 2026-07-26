@@ -1,4 +1,4 @@
-from app import build_candidate_tickers, classify_ticker, _split_results
+from app import _split_results, build_candidate_tickers, classify_ticker
 from config.config import DEFAULT_TICKERS_US_ETFS
 
 

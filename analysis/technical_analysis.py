@@ -1,6 +1,8 @@
 import pandas as pd
-import pandas_ta as ta
+import pandas_ta  # noqa: F401 — registra o accessor DataFrame.ta
+
 from models.schemas import TechnicalIndicators
+
 
 def _calculate_rsi(price_df: pd.DataFrame) -> float:
     rsi_series = price_df.ta.rsi(length=14)

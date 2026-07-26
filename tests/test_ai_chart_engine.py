@@ -1,6 +1,13 @@
+from unittest.mock import MagicMock
+
 import pytest
 
-from analysis.ai_chart_engine import _fallback_result, _parse_ai_response
+import analysis.ai_chart_engine as engine
+from analysis.ai_chart_engine import (
+    _fallback_result,
+    _parse_ai_response,
+    run_ai_technical_analysis,
+)
 from models.schemas import TechnicalIndicators
 
 
@@ -46,3 +53,32 @@ def test_fallback_preserves_support_resistance():
     assert result.short_summary_pt == "fallback"
     assert result.support_levels == indicators.support_levels
     assert result.resistance_levels == indicators.resistance_levels
+
+
+def test_run_ai_without_provider_returns_fallback(monkeypatch):
+    monkeypatch.setattr(engine, "resolve_default_provider_id", lambda: None)
+    result = run_ai_technical_analysis("PETR4.SA", _base_indicators())
+    assert result.trend == "Neutral"
+    assert "provedor" in result.short_summary_pt.lower() or "configurado" in result.short_summary_pt.lower()
+
+
+def test_run_ai_uses_injected_provider(monkeypatch):
+    mock_provider = MagicMock()
+    mock_provider.complete_chat.return_value = (
+        '{"trend":"Bearish","short_summary_pt":"Pressão vendedora.","confidence_score":0.7,'
+        '"support_levels":[9.0],"resistance_levels":[11.0]}'
+    )
+    monkeypatch.setattr(engine, "create_provider", lambda _pid: mock_provider)
+    monkeypatch.setattr(engine, "resolve_default_provider_id", lambda: "groq")
+    monkeypatch.setattr(engine, "default_model_for", lambda _pid: "llama-test")
+
+    result = run_ai_technical_analysis(
+        "VALE3.SA",
+        _base_indicators(),
+        provider_id="groq",
+        model="llama-test",
+    )
+
+    assert result.trend == "Bearish"
+    assert result.confidence_score == pytest.approx(0.7)
+    mock_provider.complete_chat.assert_called_once()

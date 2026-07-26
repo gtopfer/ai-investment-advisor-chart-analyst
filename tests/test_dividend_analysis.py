@@ -1,6 +1,8 @@
 import pandas as pd
+
 from analysis.dividend_analysis import analyze_dividends
 from config.config import MIN_DY_THRESHOLD
+
 
 def test_analyze_dividends_zero_dy():
     fundamentals = {}
@@ -93,7 +95,7 @@ def test_analyze_dividends_volatility_flag_high_from_price_history():
     dy = MIN_DY_THRESHOLD * 1.5
     fundamentals = {"dividend_yield": dy}
     dates = pd.date_range("2024-01-01", periods=60, freq="D")
-    # Alterna alta/baixa forte todo dia -> volatilidade anualizada alta
+    # Alterna alta/baixa forte a cada dia -> volatilidade anualizada alta
     close = pd.Series([100.0 if i % 2 == 0 else 70.0 for i in range(60)], index=dates)
     price_df = pd.DataFrame({"Close": close})
 

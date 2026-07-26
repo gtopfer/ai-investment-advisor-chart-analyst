@@ -1,7 +1,8 @@
+
 import pandas as pd
-from typing import Dict, Optional
-from models.schemas import DividendMetrics
+
 from config.config import MIN_DY_THRESHOLD
+from models.schemas import DividendMetrics
 
 _MIN_YEARS_FOR_STABILITY = 2
 _CONSISTENT_YEARS_RATIO = 0.8  # pagou em >= 80% dos anos observados
@@ -10,7 +11,7 @@ _LOW_VOLATILITY_THRESHOLD = 0.20
 _HIGH_VOLATILITY_THRESHOLD = 0.40
 
 
-def _compute_stability_note(dividend_history: Optional[pd.Series]) -> str:
+def _compute_stability_note(dividend_history: pd.Series | None) -> str:
     """
     Deriva a consistência de pagamento a partir do histórico real de proventos
     (yfinance `Ticker.dividends`). Sem histórico suficiente, cai no placeholder
@@ -55,15 +56,28 @@ def _compute_volatility_flag(price_df: pd.DataFrame) -> str:
 
 def analyze_dividends(
     ticker: str,
-    fundamentals: Dict,
+    fundamentals: dict,
     price_df: pd.DataFrame,
-    dividend_history: Optional[pd.Series] = None,
+    dividend_history: pd.Series | None = None,
+    *,
+    is_crypto: bool = False,
 ) -> DividendMetrics:
     """
     Analisa métricas de dividendos: yield, score de 0 a 1, consistência de
     pagamento (real, se `dividend_history` for informado) e flag de
     volatilidade (real, a partir de `price_df`).
     """
+    vol_flag = _compute_volatility_flag(price_df)
+
+    if is_crypto:
+        return DividendMetrics(
+            dy=0.0,
+            dividend_score=0.0,
+            stability_note="Não aplicável",
+            volatility_flag=vol_flag,
+            summary_pt="Dividendos não se aplicam a criptoativos.",
+        )
+
     dy = fundamentals.get("dividend_yield", 0.0)
 
     score = 0.0
@@ -81,12 +95,10 @@ def analyze_dividends(
 
         stability = _compute_stability_note(dividend_history)
 
-    vol_flag = _compute_volatility_flag(price_df)
-
     return DividendMetrics(
         dy=dy,
         dividend_score=score,
         stability_note=stability,
         volatility_flag=vol_flag,
-        summary_pt=summary
+        summary_pt=summary,
     )

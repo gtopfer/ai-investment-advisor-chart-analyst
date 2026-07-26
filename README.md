@@ -31,13 +31,16 @@ Dashboard de análise de investimentos que combina **análise técnica** (RSI, M
 | Funcionalidade | Descrição |
 |---|---|
 | **Análise Técnica Automatizada** | RSI, MACD, tendência de EMAs (20/50/200), Bandas de Bollinger, volatilidade anualizada e níveis de suporte/resistência, via `pandas-ta` |
-| **Interpretação por IA Generativa** | Groq Cloud (Llama 3.3 70B) lê os indicadores técnicos e devolve tendência, confiança e resumo em PT-BR — com limite de chamadas por sessão e senha de acesso opcional |
+| **Interpretação por IA Generativa** | Provedor configurável (Groq ou OpenAI-compatible) interpreta indicadores e devolve tendência, confiança e resumo em PT-BR — limite de chamadas por sessão e senha opcional |
 | **Análise de Dividendos** | Dividend Yield normalizado, score 0–1, consistência histórica de pagamento e flag de volatilidade |
 | **Alocação de Portfólio** | Scoring ponderado por estratégia (Growth / Dividendos / Equilíbrio) e distribuição proporcional de capital entre os ativos elegíveis |
 | **Plano de Rebalanceamento** | Compara a carteira atual informada com a carteira alvo sugerida e gera as ações necessárias (comprar/reduzir/zerar) |
+| **Como deve ficar** | Visão projetada da carteira (atual vs alvo) com opção de aplicar a projeção na carteira da sessão |
+| **Importar carteira** | Upload CSV/TXT + modelo baixável para preencher a carteira atual |
+| **UI minimalista** | Tema escuro, sidebar colapsável, empty state e cards de resumo |
 | **Coleta Paralela** | Preços, fundamentos e histórico de dividendos buscados em paralelo (`ThreadPoolExecutor`) com cache de 15 min e retry automático |
 
-Cobertura de mercado: ações e FIIs brasileiros (B3), ações e ETFs americanos, e criptoativos (via yfinance).
+Cobertura de mercado: ações e FIIs brasileiros (B3), ações e ETFs americanos, e **criptoativos** (via yfinance: `BTC-USD` ou atalho `BTC`, lista padrão ampliada, score técnico sem penalidade de dividendos).
 
 ---
 
@@ -55,13 +58,17 @@ ai-investment-advisor-chart-analyst/
 ├── analysis/
 │   ├── technical_analysis.py   # Indicadores técnicos (pandas-ta)
 │   ├── dividend_analysis.py    # Análise de proventos
-│   └── ai_chart_engine.py      # Integração com Groq API
+│   └── ai_chart_engine.py      # Orquestra prompt/parse e delega ao provedor LLM
+├── llm/
+│   └── ...                     # Adapters Groq e OpenAI-compatible + registry
+├── portfolio/
+│   └── import_portfolio.py     # Import CSV/TXT da carteira atual
 ├── allocator/
-│   └── portfolio_allocator.py  # Scoring, alocação de capital e rebalanceamento
+│   └── portfolio_allocator.py  # Scoring, alocação, rebalance e projeção
 ├── models/
 │   └── schemas.py              # Dataclasses de contrato entre camadas
 └── ui/
-    └── layout.py               # Componentes visuais do Streamlit
+    └── layout.py               # Tema escuro, sidebar e resultados
 ```
 
 Documentação técnica completa (diagramas, contratos de interface, decisões arquiteturais e riscos mapeados) em [`.ai/technical-spec.md`](.ai/technical-spec.md). O projeto segue um fluxo de desenvolvimento orientado a especificação — ver [`docs/README.md`](docs/README.md).
@@ -72,7 +79,7 @@ Documentação técnica completa (diagramas, contratos de interface, decisões a
 
 - Linux, macOS ou Windows
 - Python 3.11+
-- Chave de API Groq (opcional, só para as funcionalidades de IA) — grátis em [console.groq.com](https://console.groq.com/keys)
+- Chave de API de LLM opcional (Groq e/ou endpoint OpenAI-compatible) — Groq grátis em [console.groq.com](https://console.groq.com/keys)
 
 ---
 
@@ -113,9 +120,14 @@ cp .env.example .env
 
 | Variável | Obrigatória | Descrição |
 |---|---|---|
-| `GROQ_API_KEY` | Não | Habilita a análise de IA. Sem ela, o app funciona normalmente, mas a coluna "Motivo" fica sem os insights gerados por IA |
+| `GROQ_API_KEY` | Não | Habilita o provedor Groq |
+| `GROQ_MODEL` | Não | Modelo Groq (padrão: `llama-3.3-70b-versatile`) |
+| `OPENAI_API_KEY` | Não | Chave para endpoint OpenAI-compatible (pode ficar vazia em Ollama local) |
+| `OPENAI_BASE_URL` | Não | Base URL OpenAI-compatible (ex.: `http://localhost:11434/v1`) |
+| `OPENAI_MODEL` | Não | Modelo default do provedor OpenAI-compatible |
+| `LLM_PROVIDER` | Não | Preferência: `groq` ou `openai_compatible` quando ambos existem |
 | `AI_ACCESS_PASSWORD` | Não | Se definida, exige senha na sidebar antes de liberar chamadas à IA |
-| `MAX_AI_CALLS_PER_SESSION` | Não | Limite de chamadas à Groq por sessão (padrão: `15`) — protege sua quota/custo |
+| `MAX_AI_CALLS_PER_SESSION` | Não | Limite de chamadas à IA por sessão (padrão: `15`) |
 
 `streamlit run` não carrega `.env` automaticamente — exporte as variáveis no shell antes de rodar, ou use uma ferramenta como `python-dotenv`/`direnv` se preferir carregamento automático.
 
@@ -149,15 +161,14 @@ O navegador abre automaticamente em `http://localhost:8501`.
    - **Estratégia**: *Growth* (peso técnico 0.8), *Dividendos* (peso dividendo 0.7) ou *Equilíbrio* (50/50)
    - **Capital**: novo aporte a simular (R$)
 
-2. **Sidebar — Carteira Atual**
-   - Informe as posições atuais (uma por linha, `TICKER, VALOR` ou `TICKER, QUANTIDADE`) para gerar o plano de rebalanceamento comparando com a carteira alvo
+2. **Sidebar — Carteira atual**
+   - Digite posições (`TICKER, VALOR` ou quantidade) **ou** importe CSV/TXT (há modelo baixável)
 
 3. **Sidebar — Avançado**
-   - Período de análise, ativação da IA (com senha, se configurada), limite de ativos analisados por IA, e máximo de ativos na carteira final
+   - Período, análise IA (provedor + modelo), senha se configurada, limites de ativos
 
-4. **Gerar Carteira Recomendada**
-   - Clique no botão da sidebar e aguarde o processamento (a coleta é paralela, mas chamadas de IA são sequenciais)
-   - A tabela final mostra recomendação (Compra / Aguardar / Venda-Evitar), score, alocação % e valor sugerido, seguida do plano de rebalanceamento e do detalhe técnico de cada ativo
+4. **Gerar carteira recomendada**
+   - Resultados: métricas → carteira → alocação → rebalanceamento → **Como deve ficar** (com botão para aplicar a projeção na carteira) → detalhes técnicos
 
 ---
 

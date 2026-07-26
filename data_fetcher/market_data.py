@@ -1,9 +1,8 @@
 import time
 
+import pandas as pd
 import streamlit as st
 import yfinance as yf
-import pandas as pd
-from typing import Dict, Optional
 
 from config.config import DEFAULT_PERIOD
 
@@ -11,7 +10,7 @@ _RETRY_ATTEMPTS = 2
 _RETRY_BACKOFF_SECONDS = 0.3
 
 
-def _normalize_dividend_yield(value: Optional[float]) -> float:
+def _normalize_dividend_yield(value: float | None) -> float:
     """
     yfinance já retornou dividendYield tanto como fração (0.05) quanto,
     em algumas versões/tickers, como percentual puro (5.0). Qualquer
@@ -28,7 +27,7 @@ def get_price_history(ticker: str, period: str = DEFAULT_PERIOD) -> pd.DataFrame
     Busca histórico de preços via yfinance e cacheia para reduzir chamadas.
     Tenta novamente uma vez em caso de falha transitória antes de desistir.
     """
-    last_error: Optional[Exception] = None
+    last_error: Exception | None = None
     for attempt in range(_RETRY_ATTEMPTS):
         try:
             ticker_obj = yf.Ticker(ticker)
@@ -45,12 +44,12 @@ def get_price_history(ticker: str, period: str = DEFAULT_PERIOD) -> pd.DataFrame
     return pd.DataFrame()
 
 @st.cache_data(show_spinner=False, ttl=900)
-def get_fundamentals(ticker: str) -> Dict:
+def get_fundamentals(ticker: str) -> dict:
     """
     Busca fundamentos básicos via yfinance e cacheia para reduzir latência.
     Tenta novamente uma vez em caso de falha transitória antes de desistir.
     """
-    last_error: Optional[Exception] = None
+    last_error: Exception | None = None
     for attempt in range(_RETRY_ATTEMPTS):
         try:
             ticker_obj = yf.Ticker(ticker)
@@ -84,7 +83,7 @@ def get_dividend_history(ticker: str) -> pd.Series:
     Busca histórico de proventos pagos via yfinance, usado para avaliar
     consistência de pagamento (ver analysis/dividend_analysis.py).
     """
-    last_error: Optional[Exception] = None
+    last_error: Exception | None = None
     for attempt in range(_RETRY_ATTEMPTS):
         try:
             ticker_obj = yf.Ticker(ticker)

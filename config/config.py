@@ -25,11 +25,29 @@ DEFAULT_TICKERS_BR_FIIS = ["HGLG11.SA", "KNRI11.SA", "MXRF11.SA", "VISC11.SA"]
 DEFAULT_TICKERS_US_STOCKS = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA"]
 DEFAULT_TICKERS_US_ETFS = ["SPY", "QQQ"]
 DEFAULT_TICKERS_US = DEFAULT_TICKERS_US_STOCKS + DEFAULT_TICKERS_US_ETFS
-DEFAULT_TICKERS_CRYPTO = ["BTC-USD", "ETH-USD", "SOL-USD"]
+DEFAULT_TICKERS_CRYPTO = [
+    "BTC-USD",
+    "ETH-USD",
+    "SOL-USD",
+    "BNB-USD",
+    "XRP-USD",
+    "ADA-USD",
+    "AVAX-USD",
+    "DOGE-USD",
+    "DOT-USD",
+    "LINK-USD",
+]
 
-# Chave de API (Tenta pegar do ambiente)
+# Chaves / modelos de LLM (env)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+GROQ_MODEL_NAME = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+# Preferência de provedor: groq | openai_compatible (vazio = auto)
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "")
 
 # Segurança IA
 AI_ACCESS_PASSWORD = os.getenv("AI_ACCESS_PASSWORD", "")

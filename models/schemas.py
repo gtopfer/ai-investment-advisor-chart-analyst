@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+
 
 @dataclass
 class TechnicalIndicators:
@@ -8,16 +8,16 @@ class TechnicalIndicators:
     ema_trend: str    # "uptrend", "downtrend", "neutral"
     bollinger_position: str # "upper", "lower", "middle"
     volatility: float
-    support_levels: List[float] = field(default_factory=list)
-    resistance_levels: List[float] = field(default_factory=list)
+    support_levels: list[float] = field(default_factory=list)
+    resistance_levels: list[float] = field(default_factory=list)
 
 @dataclass
 class AIAnalysisResult:
     trend: str
     short_summary_pt: str
     confidence_score: float
-    support_levels: List[float]
-    resistance_levels: List[float]
+    support_levels: list[float]
+    resistance_levels: list[float]
 
 @dataclass
 class DividendMetrics:
@@ -33,9 +33,9 @@ class AssetAnalysis:
     market: str # "BR", "US", "CRYPTO"
     asset_class: str
     current_price: float
-    technical: Optional[TechnicalIndicators] = None
-    ai_analysis: Optional[AIAnalysisResult] = None
-    dividends: Optional[DividendMetrics] = None
+    technical: TechnicalIndicators | None = None
+    ai_analysis: AIAnalysisResult | None = None
+    dividends: DividendMetrics | None = None
     
     # Scoring results
     technical_score: float = 0.0

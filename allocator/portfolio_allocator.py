@@ -1,8 +1,10 @@
-from typing import Any, Dict, List
-from models.schemas import AssetAnalysis
-from config.config import STRATEGY_WEIGHTS
+from typing import Any
 
-def score_assets(assets: List[AssetAnalysis], strategy: str) -> List[AssetAnalysis]:
+from config.config import STRATEGY_WEIGHTS
+from models.schemas import AssetAnalysis
+
+
+def score_assets(assets: list[AssetAnalysis], strategy: str) -> list[AssetAnalysis]:
     """
     Calcula scores e ordena ativos baseado na estratégia.
     """
@@ -43,25 +45,37 @@ def score_assets(assets: List[AssetAnalysis], strategy: str) -> List[AssetAnalys
         if asset.dividends:
             div_score = asset.dividends.dividend_score
         asset.dividend_score = div_score
-        
-        # Score Total Ponderado
-        asset.total_score = (asset.technical_score * w_tech) + (asset.dividend_score * w_div)
-        
+
+        # Cripto: score total só técnico (DY=0 não deve penalizar Equilíbrio/Dividendos)
+        is_crypto = (
+            (asset.asset_class or "").lower() in {"cripto", "crypto"}
+            or (asset.market or "").upper() == "CRYPTO"
+        )
+        if is_crypto:
+            asset.total_score = asset.technical_score
+            strategy_note = "Score técnico (cripto; dividendos não aplicáveis). "
+        else:
+            asset.total_score = (asset.technical_score * w_tech) + (asset.dividend_score * w_div)
+            strategy_note = ""
+
         # Decisão Simples
+        ai_note = asset.ai_analysis.short_summary_pt if asset.ai_analysis else ""
         if asset.total_score >= 0.6:
             asset.recommendation = "Compra"
-            asset.reason = f"Score alto ({asset.total_score:.2f}). " + (asset.ai_analysis.short_summary_pt if asset.ai_analysis else "")
+            asset.reason = f"{strategy_note}Score alto ({asset.total_score:.2f}). {ai_note}".strip()
         elif asset.total_score <= 0.4:
             asset.recommendation = "Venda/Evitar"
-            asset.reason = f"Score baixo ({asset.total_score:.2f}). " + (asset.ai_analysis.short_summary_pt if asset.ai_analysis else "")
+            asset.reason = f"{strategy_note}Score baixo ({asset.total_score:.2f}). {ai_note}".strip()
         else:
             asset.recommendation = "Aguardar"
-            asset.reason = f"Score neutro ({asset.total_score:.2f}). Aguardando definição."
+            asset.reason = (
+                f"{strategy_note}Score neutro ({asset.total_score:.2f}). Aguardando definição."
+            ).strip()
 
     # Ordenar por score total decrescente
     return sorted(assets, key=lambda x: x.total_score, reverse=True)
 
-def allocate_capital(scored_assets: List[AssetAnalysis], total_capital: float, max_assets: int = 10) -> List[AssetAnalysis]:
+def allocate_capital(scored_assets: list[AssetAnalysis], total_capital: float, max_assets: int = 10) -> list[AssetAnalysis]:
     """
     Distribui capital entre os top N ativos.
     """
@@ -88,16 +102,16 @@ def allocate_capital(scored_assets: List[AssetAnalysis], total_capital: float, m
 
 
 def build_rebalance_actions(
-    current_values: Dict[str, float],
-    target_assets: List[AssetAnalysis],
+    current_values: dict[str, float],
+    target_assets: list[AssetAnalysis],
     min_trade_value: float = 1.0,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Compara carteira atual vs. carteira alvo e retorna ações de rebalanceamento.
     """
     target_values = {asset.ticker: float(asset.suggested_value) for asset in target_assets}
     all_tickers = set(current_values.keys()) | set(target_values.keys())
-    actions: List[Dict[str, Any]] = []
+    actions: list[dict[str, Any]] = []
 
     for ticker in all_tickers:
         current_value = float(current_values.get(ticker, 0.0))
@@ -127,3 +141,57 @@ def build_rebalance_actions(
         )
 
     return sorted(actions, key=lambda item: abs(item["delta_value"]), reverse=True)
+
+
+def build_projected_portfolio(
+    current_values: dict[str, float],
+    target_assets: list[AssetAnalysis],
+) -> list[dict[str, Any]]:
+    """
+    Monta visão "como deve ficar": atual vs projetado por ticker.
+    Inclui posições a zerar (target 0) com status Sair.
+    """
+    target_values = {asset.ticker: float(asset.suggested_value) for asset in target_assets}
+    target_total = sum(target_values.values())
+    all_tickers = set(current_values.keys()) | set(target_values.keys())
+    rows: list[dict[str, Any]] = []
+
+    for ticker in sorted(all_tickers):
+        current_value = float(current_values.get(ticker, 0.0))
+        projected_value = float(target_values.get(ticker, 0.0))
+        if current_value <= 0 and projected_value <= 0:
+            continue
+        pct = (projected_value / target_total * 100.0) if target_total > 0 else 0.0
+        delta = projected_value - current_value
+        if projected_value <= 0 and current_value > 0:
+            status = "Sair"
+        elif current_value <= 0 and projected_value > 0:
+            status = "Entrar"
+        elif abs(delta) < 1.0:
+            status = "Manter"
+        elif delta > 0:
+            status = "Aumentar"
+        else:
+            status = "Reduzir"
+
+        rows.append(
+            {
+                "ticker": ticker,
+                "current_value": current_value,
+                "projected_value": projected_value,
+                "projected_pct": pct,
+                "delta_value": delta,
+                "status": status,
+            }
+        )
+
+    return sorted(rows, key=lambda r: r["projected_value"], reverse=True)
+
+
+def projected_positions_for_session(rows: list[dict[str, Any]]) -> dict[str, float]:
+    """Posições com valor projetado > 0 para aplicar na carteira da sessão."""
+    return {
+        row["ticker"]: float(row["projected_value"])
+        for row in rows
+        if float(row.get("projected_value", 0.0)) > 0
+    }

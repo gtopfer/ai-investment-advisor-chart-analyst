@@ -1,12 +1,12 @@
 import json
 import logging
 from json import JSONDecodeError
-from typing import Any, Dict
+from typing import Any
 
-from groq import Groq
-
-from config.config import GROQ_API_KEY, GROQ_MODEL_NAME
+from llm.registry import create_provider, default_model_for, resolve_default_provider_id
 from models.schemas import AIAnalysisResult, TechnicalIndicators
+
+logger = logging.getLogger(__name__)
 
 
 def _fallback_result(indicators: TechnicalIndicators, message: str) -> AIAnalysisResult:
@@ -30,7 +30,7 @@ def _strip_code_fence(text_response: str) -> str:
 def _parse_ai_response(text_response: str, indicators: TechnicalIndicators) -> AIAnalysisResult:
     cleaned = _strip_code_fence(text_response)
     try:
-        data: Dict[str, Any] = json.loads(cleaned)
+        data: dict[str, Any] = json.loads(cleaned)
     except JSONDecodeError as exc:
         raise ValueError(f"Resposta não é JSON válido: {exc}") from exc
 
@@ -52,21 +52,8 @@ def _parse_ai_response(text_response: str, indicators: TechnicalIndicators) -> A
     )
 
 
-def run_ai_technical_analysis(ticker: str, indicators: TechnicalIndicators) -> AIAnalysisResult:
-    """
-    Usa a Groq (Llama 3) para interpretar os indicadores técnicos.
-    """
-
-    if not GROQ_API_KEY:
-        return _fallback_result(
-            indicators,
-            "Chave de API da Groq não configurada. Análise IA indisponível.",
-        )
-
-    try:
-        client = Groq(api_key=GROQ_API_KEY)
-
-        prompt = f"""
+def _build_prompt(ticker: str, indicators: TechnicalIndicators) -> str:
+    return f"""
         You are a professional Technical Analyst.
         Analyze the following technical indicators for {ticker}:
 
@@ -93,26 +80,34 @@ def run_ai_technical_analysis(ticker: str, indicators: TechnicalIndicators) -> A
         }}
         """
 
-        completion = client.chat.completions.create(
-            model=GROQ_MODEL_NAME,
-            messages=[
-                {"role": "system", "content": "You are a helpful financial analyst assistant that outputs only JSON."},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.2,
-            max_tokens=500,
-            top_p=1,
-            stream=False,
-            response_format={"type": "json_object"},
-        )
 
-        text_response = completion.choices[0].message.content or "{}"
-
-        return _parse_ai_response(text_response, indicators)
-
-    except Exception as e:
-        logging.error(f"Erro na análise de IA para {ticker}", exc_info=e)
+def run_ai_technical_analysis(
+    ticker: str,
+    indicators: TechnicalIndicators,
+    provider_id: str | None = None,
+    model: str | None = None,
+) -> AIAnalysisResult:
+    """
+    Interpreta indicadores técnicos via provedor LLM configurável.
+    """
+    resolved_provider = provider_id or resolve_default_provider_id()
+    if not resolved_provider:
         return _fallback_result(
             indicators,
-            "Erro ao conectar com o motor de IA (Groq).",
+            "Nenhum provedor de IA configurado. Defina GROQ_API_KEY ou OPENAI_BASE_URL.",
+        )
+
+    resolved_model = model or default_model_for(resolved_provider)
+    system = "You are a helpful financial analyst assistant that outputs only JSON."
+    user_prompt = _build_prompt(ticker, indicators)
+
+    try:
+        provider = create_provider(resolved_provider)
+        text_response = provider.complete_chat(system, user_prompt, resolved_model)
+        return _parse_ai_response(text_response, indicators)
+    except Exception as e:
+        logger.error("Erro na análise de IA para %s via %s", ticker, resolved_provider, exc_info=e)
+        return _fallback_result(
+            indicators,
+            f"Erro ao conectar com o motor de IA ({resolved_provider}).",
         )

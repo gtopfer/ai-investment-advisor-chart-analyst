@@ -1,7 +1,7 @@
 # Especificação Técnica: AI Investment Advisor & Chart Analyst
 
-**Última atualização:** 2026-07-19
-**Versão:** 1.0
+**Última atualização:** 2026-07-26
+**Versão:** 1.1
 **Veredito arquitetural:** Desafiado (ver seção 9) — desvio documentado do Clean Architecture padrão do workspace
 
 > Preenchido e mantido pelo agente Architect (`.ai/agents/architect.agent.md`). É o par técnico de `.ai/template.specs` (que é do PM, em linguagem de negócio) — juntos, esses dois arquivos são as únicas duas specs deste kit: **o quê** (requisito do app) e **como** (construção técnica).
@@ -157,7 +157,7 @@ class AssetAnalysis:
 
 ## 7. Modelo de Dados
 
-Não aplicável — o sistema não possui persistência. Todo estado vive em memória durante a execução do script Streamlit (`st.session_state` para contador de chamadas de IA) e em cache TTL (`st.cache_data`, 900s) para respostas de `data_fetcher`. Os dataclasses em `models/schemas.py` (seção 5) são o único "modelo de dados", usados como contrato em memória entre camadas — não mapeiam para tabelas.
+Não aplicável — o sistema não possui persistência. O estado vive em memória durante a execução do script Streamlit (`st.session_state` para contador de chamadas de IA) e em cache TTL (`st.cache_data`, 900s) para respostas de `data_fetcher`. Os dataclasses em `models/schemas.py` (seção 5) são o único "modelo de dados", usados como contrato em memória entre camadas — não mapeiam para tabelas.
 
 ## 8. Riscos e Mitigações
 
@@ -173,6 +173,23 @@ Não aplicável — o sistema não possui persistência. Todo estado vive em mem
 
 ## 9. Histórico de Decisões Arquiteturais
 
+### 2026-07-26 — SPEC-005: Suporte completo a cripto
+**Contexto:** Cripto já listada, mas score com DY=0, tickers sem `-USD` e labels R$ prejudicavam o uso.
+**Decisão:** (1) `total_score` de ativos Cripto = apenas `technical_score`; (2) normalização canônica `SYMBOL-USD` para aliases conhecidos; (3) UI mostra preço cripto em USD com aviso de moeda mista; (4) lista padrão ampliada (~10) via yfinance.
+**Consequências:** Função compartilhada de normalização usada em parse de carteira, import e classificação; sem conversão cambial no MVP.
+
+### 2026-07-26 — SPEC-001: Módulo multi-LLM (Groq + OpenAI-compatible)
+**Contexto:** Análise de chart acoplada ao SDK Groq; usuário precisa escolher provedor/modelo (SPEC-001).
+**Decisão:** Introduzir pacote `llm/` com interface comum `LLMProvider.complete_chat(system, user, model) -> str`, adapters `GroqProvider` e `OpenAICompatibleProvider` (SDK `openai` com `base_url`), e registry que lista provedores **habilitados** por env. `analysis/ai_chart_engine.py` orquestra prompt/parse e delega a chamada; UI sidebar seleciona provedor/modelo (session state); chaves só via env.
+**Variáveis:** `GROQ_API_KEY`, `GROQ_MODEL`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `LLM_PROVIDER` (default preferencial).
+**Alternativas:** Só HTTP raw sem SDK; SDKs nativos Anthropic/Gemini no MVP → descartados (escopo PM).
+**Consequências:** Dependência `openai` adicionada; retrocompatível com só `GROQ_API_KEY`.
+
+### 2026-07-26 — SPEC-002 / 003 / 004 (esboço técnico conjunto)
+**SPEC-002:** Tema escuro via CSS custom + `ui/layout.py` reorganizado (expanders, empty state, metric cards); sem novo framework.
+**SPEC-003:** `portfolio_import.py` (ou funções em módulo de carteira) parse CSV/TXT; `st.file_uploader` + download de template; substitui text area se N>0 válidas.
+**SPEC-004:** `build_projected_portfolio(current_values, target_assets)` em `allocator/`; UI tabela + botão aplica projeção no session state da carteira.
+
 ### 2026-07-19 — Confirmação da stack existente e desvio documentado do Clean Architecture padrão do workspace
 **Contexto:** Primeira execução do agente Architect neste repositório. O projeto já possuía código funcional (app Streamlit de análise de investimentos) construído antes da adoção do devkit-ai, sem que a stack estivesse registrada em `.ai/guidelines/architecture-guidelines.md` (campos `_a definir_`).
 **Decisão:** Confirmar a stack já em uso (Python 3.11+, Streamlit, yfinance, pandas/pandas-ta, Groq SDK, pytest, ruff) como referência vinculante em `architecture-guidelines.md`. Documentar oficialmente o desvio do padrão `domain/application/adapters/infra` do workspace: este projeto adota um **Pipeline em Camadas Funcionais** (`data_fetcher → analysis → allocator → ui`, orquestrado por `app.py`), por se tratar de um script Streamlit stateless sem persistência nem autenticação real — caso enquadrado na exceção "CLI ou scripts standalone" da tabela de `architecture-guidelines.md`.
@@ -184,4 +201,5 @@ Não aplicável — o sistema não possui persistência. Todo estado vive em mem
 
 | Versão | Data | Mudança |
 |--------|------|---------|
+| 1.1 | 2026-07-26 | SPEC-001 multi-LLM; rascunho técnico 002–004 |
 | 1.0 | 2026-07-19 | Criação inicial — baseline técnico a partir do código existente (SPEC-000 Configuração Inicial) |

@@ -1,8 +1,15 @@
+from unittest.mock import MagicMock, PropertyMock, patch
+
 import pandas as pd
 import pytest
-from unittest.mock import patch, MagicMock, PropertyMock
-from data_fetcher.market_data import get_price_history, get_fundamentals, get_dividend_history
 import streamlit as st
+
+from data_fetcher.market_data import (
+    get_dividend_history,
+    get_fundamentals,
+    get_price_history,
+)
+
 
 @pytest.fixture(autouse=True)
 def clear_caches():

@@ -1,0 +1,3 @@
+# Regras alinhadas ao pipeline Streamlit: catch amplo em IO externo é intencional.
+[lint]
+ignore = ["BLE001"]
