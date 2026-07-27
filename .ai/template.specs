@@ -11,7 +11,24 @@
 - Restrição 1: [ex.: performance, limites, dependências de banco de dados]
 
 ## 3. Expectativas de UI/UX (se aplicável)
-- Descreva layout, indicações visuais, cores, responsividade, transições.
+> Preenchimento fino na fase **UX** (`spec_approved`). O PM indica se há UI; o UX Designer completa (skills `ui-ux` + `microcopy`).
+
+- Há interface de usuário? Sim / Não (se Não, justifique)
+- **Telas / superfícies**: …
+- **Fluxo principal**: …
+- **Estados** (loading / empty / error / success): …
+- **Componentes do design system**: …
+- **Microcopy-chave** (CTAs, erros, empty — skill microcopy): …
+- **Responsivo / a11y**: …
+- **Fora de escopo visual**: …
+
+### Definition of Done — UX (gate da fase `spec_approved`)
+- [ ] Telas/superfícies listadas **ou** N/A justificado
+- [ ] Estados loading / empty / error / success cobertos (se UI)
+- [ ] Microcopy-chave definida (CTAs, erros, empty)
+- [ ] Alinhado a `.ai/guidelines/design-premises.md`
+- [ ] Gherkin observável atualizado (se UI)
+- [ ] Aceite humano na fase UX
 
 ## 4. Checklist Técnico / Notas
 - Precisa de mudança no banco de dados: Sim/Não (descreva)

@@ -3,6 +3,7 @@ from collections.abc import Callable
 import pandas as pd
 import streamlit as st
 
+from config.config import ASSET_CLASS_OPTIONS
 from llm.registry import (
     default_model_for,
     get_enabled_providers,
@@ -105,7 +106,7 @@ def render_sidebar():
         with st.expander("Essencial", expanded=True):
             asset_classes = st.multiselect(
                 "Classes de ativos",
-                ["Ações", "FIIs", "ETFs", "BDRs", "Cripto"],
+                ASSET_CLASS_OPTIONS,
                 default=["Ações", "FIIs"],
                 help="Cripto: use BTC-USD ou atalhos BTC, ETH, SOL (Yahoo Finance).",
             )

@@ -138,8 +138,17 @@ def parse_portfolio_csv(content: str) -> ImportResult:
     )
 
 
+def parse_current_portfolio(raw_text: str) -> dict[str, float]:
+    """
+    Parseia carteira informada pelo usuário (sidebar / texto livre).
+    Formatos aceitos por linha: TICKER,VALOR | TICKER:VALOR | TICKER;VALOR
+    Fonte única compartilhada com import TXT.
+    """
+    return parse_portfolio_txt(raw_text).positions
+
+
 def parse_portfolio_txt(content: str) -> ImportResult:
-    """Mesmo formato linha a linha do parse_current_portfolio do app."""
+    """Formato linha a linha da carteira atual (sidebar e import .txt)."""
     positions: dict[str, float] = {}
     skip_reasons: list[str] = []
     imported = 0

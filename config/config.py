@@ -4,6 +4,10 @@ import os
 APP_TITLE = "AI Investment Advisor & Chart Analyst"
 APP_ICON = "📈"
 
+# Classes expostas no multiselect da sidebar (fonte única — SPEC-008)
+ASSET_CLASS_OPTIONS = ["Ações", "FIIs", "ETFs", "Cripto"]
+
+
 # Períodos de Análise
 DEFAULT_PERIOD = "1y"
 

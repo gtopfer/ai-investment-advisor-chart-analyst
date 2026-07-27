@@ -10,6 +10,9 @@ class TechnicalIndicators:
     volatility: float
     support_levels: list[float] = field(default_factory=list)
     resistance_levels: list[float] = field(default_factory=list)
+    # True quando o histórico é curto demais para indicadores confiáveis (SPEC-010)
+    insufficient_history: bool = False
+
 
 @dataclass
 class AIAnalysisResult:

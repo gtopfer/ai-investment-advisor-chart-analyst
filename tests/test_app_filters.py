@@ -1,5 +1,6 @@
-from app import _split_results, build_candidate_tickers, classify_ticker
-from config.config import DEFAULT_TICKERS_US_ETFS
+from app import _split_results
+from config.config import ASSET_CLASS_OPTIONS, DEFAULT_TICKERS_US_ETFS
+from portfolio.candidates import build_candidate_tickers, classify_ticker
 
 
 def test_build_candidate_tickers_filters_etfs_only():
@@ -49,3 +50,13 @@ def test_split_results_separates_failed_tickers_preserving_order():
 
     assert analyzed == ["asset-a", "asset-c"]
     assert failed == ["B"]
+
+
+def test_asset_class_options_exclude_bdrs():
+    assert "BDRs" not in ASSET_CLASS_OPTIONS
+    assert set(ASSET_CLASS_OPTIONS) == {"Ações", "FIIs", "ETFs", "Cripto"}
+
+
+def test_build_candidate_tickers_bdrs_alone_is_empty():
+    # Classe removida da UI; se ainda for passada, não há ramo de candidatos
+    assert build_candidate_tickers(["BDRs"], "Ambos") == []

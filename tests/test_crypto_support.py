@@ -1,8 +1,8 @@
 from allocator.portfolio_allocator import score_assets
 from analysis.dividend_analysis import analyze_dividends
-from app import classify_ticker, parse_current_portfolio
 from models.schemas import AssetAnalysis, DividendMetrics, TechnicalIndicators
-from portfolio.import_portfolio import parse_portfolio_csv
+from portfolio.candidates import classify_ticker
+from portfolio.import_portfolio import parse_current_portfolio, parse_portfolio_csv
 from utils.tickers import is_crypto_ticker, normalize_ticker
 
 

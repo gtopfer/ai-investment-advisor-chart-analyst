@@ -1,41 +1,99 @@
-# Skill: Test-Driven Development (TDD — Desenvolvimento Orientado a Testes)
+# Skill: TDD (Test-Driven Development)
 
-Gere os testes ANTES da implementação, derivados diretamente dos critérios de aceitação em `.ai/template.specs` e dos cenários no arquivo `.feature` correspondente. Agnóstico de linguagem — troque os nomes de ferramenta pela stack real do projeto.
+> **Usado por**: QA (fase `tech_approved`) e Developer (respeita RED→GREEN→REFACTOR).  
+> **Comando de verdade do kit**: a suíte local + `./devkit review` no fechamento.
+
+## Quando usar
+
+- Sempre que uma feature/refatoração entra em `tech_approved` ou o harness precisa ser ampliado.
+- Nunca “testar depois se der tempo”.
+
+## Fontes da verdade (nesta ordem)
+
+1. **Spec ativa** — `.ai/specs/<nome>.md` (requisitos, restrições, DoD)  
+2. **Gherkin** — `.ai/features.feature` ou `.feature` dedicado  
+3. **Contratos** — `.ai/technical-spec.md` §5  
+4. **Modelo** — `.ai/template.specs` só para estrutura de seções, **não** para inventar requisitos  
 
 ## Ciclo
 
 ```
-1. RED    (vermelho)  — escreva um teste que falha para um cenário Gherkin ou requisito
-2. GREEN  (verde)     — escreva o mínimo de código para fazê-lo passar
-3. REFACTOR (refatorar) — limpe sem mudar o comportamento; os testes continuam verdes
+RED     → escreva um teste que falha pelo motivo certo (comportamento ausente)
+GREEN   → implemente o mínimo para passar
+REFACTOR→ limpe sem mudar comportamento; mantenha verde
 ```
 
-## Regras de Derivação
-1. Todo cenário Given/When/Then (Dado/Quando/Então) no arquivo `.feature` → pelo menos um teste
-2. Toda regra de negócio na spec → um teste positivo + um teste negativo
-3. Toda validação → um teste de sucesso + um teste por caso de falha
-4. Casos de borda citados em "Requisitos e Restrições" → testes explícitos, não cobertura presumida
+Repita por fatia vertical (um cenário/requisito por vez). Não escreva a suíte inteira e depois o sistema inteiro se a fatia for grande demais para feedback rápido — mas na fase QA do DevKit a suíte RED completa da feature é o entregável antes do Dev.
 
-## Estrutura
+## Derivação (checklist)
+
+| Origem | Testes mínimos |
+|--------|----------------|
+| Cenário Gherkin | ≥ 1 teste automatizado |
+| Requisito de negócio | 1 positivo + 1 negativo |
+| Validação de entrada | 1 sucesso + 1 por tipo de falha relevante |
+| Borda na spec | 1 teste explícito |
+| Erro de integração (contrato) | 1 teste com mock do falha |
+
+## Anatomia do teste
 
 ```
-describe("[Feature]")
-  describe("[Cenário / critério de aceitação]")
-    it("deve [comportamento esperado]")
-      // Arrange (organizar)
-      // Act (agir)
-      // Assert (verificar)
+Arrange  — dados, mocks, estado inicial
+Act      — uma ação principal
+Assert   — comportamento observável (não detalhe privado)
 ```
-(Adapte ao framework de teste do projeto — `describe/it` do Vitest/Jest, classes/funções do pytest, testes de tabela do Go, etc. O formato Arrange/Act/Assert se mantém.)
 
-## Convenções
-- Mocke todas as dependências externas (BD, rede, sistema de arquivos, auth) em testes unitários — nunca acesse serviços reais
-- Um arquivo de teste foca em uma única unidade (uma função, um módulo, um endpoint)
-- Nomes de teste descrevem comportamento, não implementação ("rejeita título vazio", não "chama validate()")
-- Espelhe a estrutura do código-fonte no diretório de testes (`src/foo/bar.ts` → `tests/foo/bar.spec.ts`)
+### Nomes
 
-## Critérios de Saída (antes de considerar a feature pronta)
-- [ ] Todo cenário do arquivo `.feature` tem um teste passando
-- [ ] Todo caso negativo/de borda na spec tem um teste passando
-- [ ] Suíte completa passa — zero falhas, zero testes pulados sem justificativa
-- [ ] O checklist de `.ai/skills/code-review.md` foi executado nos arquivos alterados
+- Bom: `rejeita email vazio`, `lista apenas itens do usuário autenticado`  
+- Ruim: `test1`, `funciona`, `chama validateEmail`
+
+### Isolamento
+
+- Mock: BD, HTTP, FS, clock, random, auth externa  
+- Unitário **não** sobe servidor real nem toca rede  
+- Um arquivo de teste ≈ uma unidade (função, use case, componente)
+
+### Layout
+
+Espelhe o código: `src/domain/pricing.ts` → `tests/domain/pricing.spec.ts` (ou convenção da stack).
+
+## Prova de RED (obrigatória na fase QA)
+
+Antes de `./devkit approve` em `tech_approved`:
+
+1. Rode a suíte.  
+2. Novos testes **falham**.  
+3. A mensagem de falha aponta comportamento ausente, não `SyntaxError` no teste.  
+4. Se já passam: asserts estão frouxos ou a implementação já existia — ajuste.
+
+## Prova de GREEN (fase Developer)
+
+- Todos os testes da feature passam.  
+- Não delete asserts.  
+- `skip`/`xit` só com justificativa no chat e acordo do PM.
+
+## Anti-padrões
+
+| Evite | Faça |
+|-------|------|
+| Testar implementação privada | Testar contrato/comportamento |
+| Um mega-teste de 200 linhas | Vários casos focados |
+| Snapshots frágeis como único assert | Asserts semânticos |
+| Dependência de ordem entre testes | Cada teste independente |
+| Dados mágicos sem nome | Fixtures/builders legíveis |
+
+## Critérios de saída (feature)
+
+- [ ] Todo cenário `.feature` relevante tem teste  
+- [ ] Requisitos da §2 cobertos (pos/neg/borda)  
+- [ ] Mocks nas bordas externas  
+- [ ] Suíte executável na CI/local do projeto  
+- [ ] Em GREEN: zero falhas; code-review skill aplicada no fechamento  
+
+## Ligação com o kit
+
+```
+QA (RED)  --approve--> Developer (GREEN) --review+approve--> QA (validação)
+         tdd.md              tdd + autonomous-loop + code-review
+```

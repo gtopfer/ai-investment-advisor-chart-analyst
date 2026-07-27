@@ -45,6 +45,9 @@ Este projeto **não segue** o padrão `domain/application/adapters/infra` abaixo
 │   ├── dividend_analysis.py    #   Métricas de dividendos/consistência
 │   └── ai_chart_engine.py      #   Interpretação via Groq (IA generativa)
 ├── allocator/portfolio_allocator.py # Scoring, alocação de capital, plano de rebalanceamento
+├── portfolio/                  # Domínio de carteira (parse unificado, candidatos, classificação)
+│   ├── candidates.py           #   classify_ticker + build_candidate_tickers
+│   └── import_portfolio.py     #   CSV/TXT + parse_current_portfolio
 ├── models/schemas.py           # Dataclasses compartilhadas entre todas as camadas (contrato de dados)
 └── ui/layout.py                # Componentes de apresentação Streamlit (sidebar, tabelas, gráficos)
 ```

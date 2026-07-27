@@ -82,7 +82,7 @@ sequenceDiagram
 | Indicadores técnicos | pandas-ta | >=0.3.14b0,<0.4 | RSI, MACD, EMA, Bollinger prontos sobre DataFrame pandas |
 | Numérico base | numpy | >=1.26,<2.1 | Dependência transitiva de pandas/pandas-ta |
 | IA generativa | groq (SDK) | >=0.5,<0.7 | Inferência rápida e gratuita/barata para Llama 3.3 70B, resposta em JSON estruturado |
-| Gráficos | plotly | >=5.18,<6 | **Declarado mas não usado** (ver seção 8, risco de débito técnico) — UI atual usa `st.bar_chart` |
+| Gráficos | Streamlit nativo | — | `st.bar_chart` (plotly removido em SPEC-009) |
 | Testes | pytest | >=8,<9 | Padrão Python, já usado em `tests/` |
 | Lint/Format | ruff | >=0.6,<0.7 | Lint+format unificados, já configurado |
 | Persistência | — | — | Nenhuma. Stateless por request; cache só em memória via `st.cache_data` (TTL 900s) |
@@ -166,12 +166,16 @@ Não aplicável — o sistema não possui persistência. O estado vive em memór
 | `yfinance` é biblioteca não-oficial que depende de scraping do Yahoo Finance; pode quebrar sem aviso | 🟡 | Cache 900s reduz frequência de chamadas; retry de 2 tentativas; tickers com falha são reportados ao usuário em vez de derrubar a análise inteira (`failed_tickers`) |
 | `GROQ_API_KEY` exposta se `.env` for commitado por engano | 🔴 | Chave lida só via `os.getenv`; `.gitignore` deve cobrir `.env` (validar); `AI_ACCESS_PASSWORD` opcional adiciona camada extra antes de gastar quota |
 | Ausência de autenticação real — qualquer usuário com acesso à instância pode consumir a quota de IA até `MAX_AI_CALLS_PER_SESSION` | 🟡 | Senha opcional (`AI_ACCESS_PASSWORD`) + limite por sessão. Aceitável para uso educacional/demo, não para produção multiusuário sem revisão |
-| `plotly` declarado em `requirements.txt` mas não usado em nenhum módulo (`ui/layout.py` usa `st.bar_chart`) | 🟢 | Débito técnico de baixo impacto — remover da dependência ou decidir adotá-lo para os gráficos existentes numa spec futura |
 | Resposta da IA (Groq) pode vir fora do formato JSON esperado | 🟡 | `_parse_ai_response` trata `JSONDecodeError` e campos ausentes com fallback neutro (`_fallback_result`), sem quebrar o pipeline |
-| Cálculo de indicadores técnicos exige >= 50 candles; ativos com histórico curto retornam indicadores neutros silenciosos | 🟢 | Comportamento intencional documentado em `analyze_chart_patterns`; considerar expor esse aviso na UI numa spec futura |
+| Cálculo de indicadores técnicos exige >= 50 candles; ativos com histórico curto retornam indicadores neutros | 🟢 | Flag `insufficient_history` + aviso na UI (SPEC-010) |
 | Paralelismo via `ThreadPoolExecutor` (10 workers) sem limite de rate para yfinance | 🟡 | Cache TTL absorve picos de re-execução; se Yahoo Finance começar a bloquear por IP, será necessário backoff mais agressivo ou fila |
 
 ## 9. Histórico de Decisões Arquiteturais
+
+### 2026-07-26 — SPEC-006…011: Higiene de harness, domínio e UX honesta
+**Contexto:** Pós-upgrade do DevKit, review falhava; dívida de parse duplicado, plotly ocioso, BDRs mortos, `app.py` acoplado e histórico curto silencioso.
+**Decisão:** (1) Harness local (`pytest.ini`, ruff exclude `devkit`, review com pacotes + `python -m pytest`); (2) parse canônico em `portfolio/import_portfolio.py`; (3) remover BDRs do multiselect (`ASSET_CLASS_OPTIONS`); (4) remover plotly; (5) flag `insufficient_history` + warning UI; (6) `portfolio/candidates.py` + logging em `app.py`.
+**Consequências:** Gate `./devkit review` utilizável; domínio testável sem Streamlit; BDR como classe de filtro fica para feature futura se demandada.
 
 ### 2026-07-26 — SPEC-005: Suporte completo a cripto
 **Contexto:** Cripto já listada, mas score com DY=0, tickers sem `-USD` e labels R$ prejudicavam o uso.

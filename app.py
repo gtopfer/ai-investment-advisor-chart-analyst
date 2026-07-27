@@ -1,4 +1,4 @@
-import re
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import streamlit as st
@@ -18,12 +18,6 @@ from config.config import (
     AI_ACCESS_PASSWORD,
     APP_ICON,
     APP_TITLE,
-    DEFAULT_TICKERS_BR_FIIS,
-    DEFAULT_TICKERS_BR_STOCKS,
-    DEFAULT_TICKERS_CRYPTO,
-    DEFAULT_TICKERS_US,
-    DEFAULT_TICKERS_US_ETFS,
-    DEFAULT_TICKERS_US_STOCKS,
     MAX_AI_CALLS_PER_SESSION,
 )
 from data_fetcher.market_data import (
@@ -32,7 +26,8 @@ from data_fetcher.market_data import (
     get_price_history,
 )
 from models.schemas import AssetAnalysis
-from portfolio.import_portfolio import format_positions_as_text
+from portfolio.candidates import build_candidate_tickers, classify_ticker
+from portfolio.import_portfolio import format_positions_as_text, parse_current_portfolio
 from ui.layout import (
     display_portfolio,
     display_projected_portfolio,
@@ -43,105 +38,9 @@ from ui.layout import (
     render_header,
     render_sidebar,
 )
-from utils.tickers import is_crypto_ticker, normalize_ticker
+from utils.tickers import normalize_ticker
 
-_BR_FII_SUFFIX_PATTERN = re.compile(r"1[12]B?\.SA$")
-_US_STOCK_PATTERN = re.compile(r"^[A-Z]{1,5}$")
-
-
-def classify_ticker(ticker: str) -> tuple[str, str]:
-    """
-    Best-effort classificação de classe e mercado com base em heurísticas simples.
-    Ativos fora das listas padrão (ex.: digitados manualmente na carteira atual)
-    caem nos fallbacks por padrão de sufixo/formato antes de "Desconhecido".
-    """
-    ticker = normalize_ticker(ticker)
-    if ticker in DEFAULT_TICKERS_BR_FIIS:
-        return "FIIs", "BR"
-    if ticker in DEFAULT_TICKERS_BR_STOCKS:
-        return "Ações", "BR"
-    if ticker in DEFAULT_TICKERS_US_ETFS:
-        return "ETFs", "US"
-    if ticker in DEFAULT_TICKERS_US_STOCKS:
-        return "Ações", "US"
-    if ticker in DEFAULT_TICKERS_US:
-        return "Ações/ETF", "US"
-    if ticker in DEFAULT_TICKERS_CRYPTO or is_crypto_ticker(ticker):
-        return "Cripto", "CRYPTO"
-    if ticker.endswith(".SA"):
-        if _BR_FII_SUFFIX_PATTERN.search(ticker):
-            return "FIIs", "BR"
-        return "Ações", "BR"
-    if _US_STOCK_PATTERN.match(ticker):
-        return "Ações", "US"
-    return "Desconhecido", "US/CRYPTO"
-
-
-def build_candidate_tickers(asset_classes, universe) -> list[str]:
-    """
-    Monta lista de tickers respeitando filtro de classes e geografia.
-    """
-    tickers: list[str] = []
-
-    if universe in ["Nacional", "Ambos"]:
-        if "Ações" in asset_classes:
-            tickers.extend(DEFAULT_TICKERS_BR_STOCKS)
-        if "FIIs" in asset_classes:
-            tickers.extend(DEFAULT_TICKERS_BR_FIIS)
-
-    if universe in ["Internacional", "Ambos"]:
-        if "Ações" in asset_classes:
-            tickers.extend(DEFAULT_TICKERS_US_STOCKS)
-        if "ETFs" in asset_classes:
-            tickers.extend(DEFAULT_TICKERS_US_ETFS)
-
-    if "Cripto" in asset_classes:
-        tickers.extend(DEFAULT_TICKERS_CRYPTO)
-
-    return list(dict.fromkeys(tickers))
-
-
-def _parse_numeric_value(value: str) -> float:
-    clean = value.strip().replace("R$", "").replace(" ", "")
-    if "," in clean and "." in clean:
-        if clean.rfind(",") > clean.rfind("."):
-            clean = clean.replace(".", "").replace(",", ".")
-        else:
-            clean = clean.replace(",", "")
-    elif "," in clean:
-        clean = clean.replace(".", "").replace(",", ".")
-    return float(clean)
-
-
-def parse_current_portfolio(raw_text: str) -> dict[str, float]:
-    """
-    Parseia carteira informada pelo usuário.
-    Formatos aceitos por linha: TICKER,VALOR | TICKER:VALOR | TICKER;VALOR
-    """
-    positions: dict[str, float] = {}
-    for raw_line in raw_text.splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-
-        parts = [part.strip() for part in re.split(r"[,;:]", line, maxsplit=1) if part.strip()]
-        if len(parts) != 2:
-            continue
-
-        ticker = normalize_ticker(parts[0])
-        if not ticker or not re.match(r"^[A-Z0-9.\-]+$", ticker):
-            continue
-
-        try:
-            amount = _parse_numeric_value(parts[1])
-        except ValueError:
-            continue
-
-        if amount <= 0:
-            continue
-
-        positions[ticker] = positions.get(ticker, 0.0) + amount
-    return positions
+logger = logging.getLogger(__name__)
 
 
 def convert_positions_to_value_map(
@@ -210,6 +109,15 @@ def _split_results(
     return analyzed_assets, failed_tickers
 
 
+def _tickers_with_insufficient_history(assets: list[AssetAnalysis]) -> list[str]:
+    out: list[str] = []
+    for asset in assets:
+        tech = asset.technical
+        if tech is not None and getattr(tech, "insufficient_history", False):
+            out.append(asset.ticker)
+    return out
+
+
 def analyze_assets(
     tickers: list[str],
     period: str,
@@ -263,8 +171,8 @@ def analyze_assets(
                 asset = future.result()
                 if asset:
                     results[ticker] = asset
-            except Exception as e:
-                print(f"Erro ao processar {ticker}: {e}")
+            except Exception:
+                logger.exception("Erro ao processar %s", ticker)
 
     analyzed_assets, failed_tickers = _split_results(tickers, results)
 
@@ -317,6 +225,7 @@ def process_portfolio(
     final_portfolio = allocate_capital(scored_assets, target_total_value, max_assets=max_portfolio_assets)
     rebalance_actions = build_rebalance_actions(current_value_map, final_portfolio)
     projected_rows = build_projected_portfolio(current_value_map, final_portfolio)
+    short_history_tickers = _tickers_with_insufficient_history(scored_assets)
 
     return (
         scored_assets,
@@ -327,6 +236,7 @@ def process_portfolio(
         target_total_value,
         ai_calls,
         failed_tickers,
+        short_history_tickers,
     )
 
 
@@ -369,6 +279,7 @@ def handle_generate_portfolio(
             target_total_value,
             ai_calls,
             failed_tickers,
+            short_history_tickers,
         ) = process_portfolio(
             tickers=tickers,
             current_positions=current_positions,
@@ -395,6 +306,7 @@ def handle_generate_portfolio(
             "capital": capital,
             "ai_calls": ai_calls,
             "failed_tickers": failed_tickers,
+            "short_history_tickers": short_history_tickers,
             "run_ai": run_ai,
         }
         st.success("Análise concluída.")
@@ -424,6 +336,12 @@ def _render_last_run():
         st.warning(
             f"Não foi possível obter dados para: {', '.join(run['failed_tickers'])}. "
             "Podem estar indisponíveis na fonte de dados ou o ticker está incorreto."
+        )
+    short_hist = run.get("short_history_tickers") or []
+    if short_hist:
+        st.warning(
+            "Histórico insuficiente para indicadores completos: "
+            f"{', '.join(short_hist)}. Scores técnicos desses ativos tendem a ser neutros."
         )
     if run["run_ai"]:
         st.caption(f"IA executada em {run['ai_calls']} ativos.")

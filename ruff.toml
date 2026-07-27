@@ -1,3 +1,12 @@
 # Regras alinhadas ao pipeline Streamlit: catch amplo em IO externo é intencional.
+# CLI DevKit (./devkit) não é código de produção do app — fora do lint de review.
+exclude = [
+    "devkit",
+    "venv",
+    ".venv",
+    ".devkit-upgrade-backup-*",
+    "__pycache__",
+]
+
 [lint]
 ignore = ["BLE001"]

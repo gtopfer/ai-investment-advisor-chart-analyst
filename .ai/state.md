@@ -4,21 +4,28 @@ Este arquivo é lido e atualizado automaticamente pela IA para rastrear o status
 
 ## Como funciona
 1. **Rastreamento Automático**: A IA verifica os arquivos na pasta `.ai/specs/` e atualiza a tabela abaixo com o status correspondente.
-2. **Ciclo de Vida (Fases)**:
+2. **Ciclo de Vida (Fases)** — DevKit-AI atualizado em 2026-07-26:
    - `draft` (Rascunho inicial do PM)
-   - `spec_approved` (Requisitos de negócio aprovados pelo usuário; aguardando arquitetura)
-   - `tech_approved` (Especificação técnica aprovada pelo usuário; aguardando testes)
+   - `spec_approved` (Requisitos de negócio aprovados; aguardando UI/UX)
+   - `ux_approved` (UI/UX aprovada; aguardando arquitetura técnica)
+   - `tech_approved` (Especificação técnica aprovada; aguardando testes TDD)
    - `test_red` (Testes TDD escritos e falhando; aguardando implementação)
-   - `code_review` (Implementado; passando por revisão estática)
-   - `tested` (Testes passando com sucesso; aguardando validação do DoD pelo PM)
+   - `code_review` (Implementado; validação de QA)
+   - `tested` (Testes ok; validação de DoD do PM)
    - `done` (Entregue, documentado e concluído)
 
 ---
 
 ## Lista de Especificações Ativas
 
-| Código | Título da Spec | Caminho do Arquivo | Status Atual | Próxima Fase | Última Atualização |
-|--------|----------------|-------------------|--------------|--------------|---------------------|
+| Código | Título da Spec | Caminho do Arquivo | Status Atual | Fase Ativa | Última Atualização |
+|--------|----------------|-------------------|--------------|------------|---------------------|
+| SPEC-011 | Extrair núcleo de domínio de app.py + logging estruturado | `.ai/specs/011_extrair_núcleo_de_domínio_de_apppy_logging_estruturado.md` | `done` | `done` | 2026-07-26 |
+| SPEC-010 | Avisos de qualidade de dados (histórico curto / indicadores neutros) | `.ai/specs/010_avisos_de_qualidade_de_dados_histórico_curto_indicadores_neutros.md` | `done` | `done` | 2026-07-26 |
+| SPEC-009 | Remover dependência plotly não utilizada | `.ai/specs/009_remover_dependência_plotly_não_utilizada.md` | `done` | `done` | 2026-07-26 |
+| SPEC-008 | Classe BDRs: remover opção morta ou suportar universo | `.ai/specs/008_classe_bdrs_remover_opção_morta_ou_suportar_universo.md` | `done` | `done` | 2026-07-26 |
+| SPEC-007 | Unificar parse de carteira (app + portfolio) | `.ai/specs/007_unificar_parse_de_carteira_app_portfolio.md` | `done` | `done` | 2026-07-26 |
+| SPEC-006 | [HOTFIX] Harness ./devkit review estável (pytest path + ruff) | `.ai/specs/006_harness_devkit_review_estável_pytest_path_ruff.md` | `done` | `done` | 2026-07-26 |
 | SPEC-005 | Suporte completo a criptoativos | `.ai/specs/005_crypto_support.md` | `done` | `done` | 2026-07-26 |
 | SPEC-001 | Módulo multi-LLM (provedor configurável) | `.ai/specs/001_llm_provider_module.md` | `done` | `done` | 2026-07-26 |
 | SPEC-002 | Layout amigável e minimalista | `.ai/specs/002_minimalist_layout.md` | `done` | `done` | 2026-07-26 |
@@ -30,6 +37,61 @@ Este arquivo é lido e atualizado automaticamente pela IA para rastrear o status
 
 ## Histórico de Execuções Recentes
 
+* **2026-07-26**: [SPEC-011] Aprovado e transicionado: `tested` ➔ `done` (Fase Ativa: `done`).
+* **2026-07-26**: [SPEC-011] Aprovado e transicionado: `code_review` ➔ `tested` (Fase Ativa: `pm_dod`).
+* **2026-07-26**: [SPEC-011] Aprovado e transicionado: `test_red` ➔ `code_review` (Fase Ativa: `qa_validation`).
+* **2026-07-26**: [SPEC-011] Aprovado e transicionado: `tech_approved` ➔ `test_red` (Fase Ativa: `developer`).
+* **2026-07-26**: [SPEC-011] Aprovado e transicionado: `ux_approved` ➔ `tech_approved` (Fase Ativa: `qa_tdd`).
+* **2026-07-26**: [SPEC-011] Aprovado e transicionado: `spec_approved` ➔ `ux_approved` (Fase Ativa: `architect`).
+* **2026-07-26**: [SPEC-011] Aprovado e transicionado: `draft` ➔ `spec_approved` (Fase Ativa: `ux`).
+* **2026-07-26**: [SPEC-011] ativada como spec prioritária (topo da fila ativa).
+* **2026-07-26**: [SPEC-010] Aprovado e transicionado: `tested` ➔ `done` (Fase Ativa: `done`).
+* **2026-07-26**: [SPEC-010] Aprovado e transicionado: `code_review` ➔ `tested` (Fase Ativa: `pm_dod`).
+* **2026-07-26**: [SPEC-010] Aprovado e transicionado: `test_red` ➔ `code_review` (Fase Ativa: `qa_validation`).
+* **2026-07-26**: [SPEC-010] Aprovado e transicionado: `tech_approved` ➔ `test_red` (Fase Ativa: `developer`).
+* **2026-07-26**: [SPEC-010] Aprovado e transicionado: `ux_approved` ➔ `tech_approved` (Fase Ativa: `qa_tdd`).
+* **2026-07-26**: [SPEC-010] Aprovado e transicionado: `spec_approved` ➔ `ux_approved` (Fase Ativa: `architect`).
+* **2026-07-26**: [SPEC-010] Aprovado e transicionado: `draft` ➔ `spec_approved` (Fase Ativa: `ux`).
+* **2026-07-26**: [SPEC-010] ativada como spec prioritária (topo da fila ativa).
+* **2026-07-26**: [SPEC-009] Aprovado e transicionado: `tested` ➔ `done` (Fase Ativa: `done`).
+* **2026-07-26**: [SPEC-009] Aprovado e transicionado: `code_review` ➔ `tested` (Fase Ativa: `pm_dod`).
+* **2026-07-26**: [SPEC-009] Aprovado e transicionado: `test_red` ➔ `code_review` (Fase Ativa: `qa_validation`).
+* **2026-07-26**: [SPEC-009] Aprovado e transicionado: `tech_approved` ➔ `test_red` (Fase Ativa: `developer`).
+* **2026-07-26**: [SPEC-009] Aprovado e transicionado: `ux_approved` ➔ `tech_approved` (Fase Ativa: `qa_tdd`).
+* **2026-07-26**: [SPEC-009] Aprovado e transicionado: `spec_approved` ➔ `ux_approved` (Fase Ativa: `architect`).
+* **2026-07-26**: [SPEC-009] Aprovado e transicionado: `draft` ➔ `spec_approved` (Fase Ativa: `ux`).
+* **2026-07-26**: [SPEC-009] ativada como spec prioritária (topo da fila ativa).
+* **2026-07-26**: [SPEC-008] Aprovado e transicionado: `tested` ➔ `done` (Fase Ativa: `done`).
+* **2026-07-26**: [SPEC-008] Aprovado e transicionado: `code_review` ➔ `tested` (Fase Ativa: `pm_dod`).
+* **2026-07-26**: [SPEC-008] Aprovado e transicionado: `test_red` ➔ `code_review` (Fase Ativa: `qa_validation`).
+* **2026-07-26**: [SPEC-008] Aprovado e transicionado: `tech_approved` ➔ `test_red` (Fase Ativa: `developer`).
+* **2026-07-26**: [SPEC-008] Aprovado e transicionado: `ux_approved` ➔ `tech_approved` (Fase Ativa: `qa_tdd`).
+* **2026-07-26**: [SPEC-008] Aprovado e transicionado: `spec_approved` ➔ `ux_approved` (Fase Ativa: `architect`).
+* **2026-07-26**: [SPEC-008] Aprovado e transicionado: `draft` ➔ `spec_approved` (Fase Ativa: `ux`).
+* **2026-07-26**: [SPEC-008] ativada como spec prioritária (topo da fila ativa).
+* **2026-07-26**: [SPEC-007] Aprovado e transicionado: `tested` ➔ `done` (Fase Ativa: `done`).
+* **2026-07-26**: [SPEC-007] Aprovado e transicionado: `code_review` ➔ `tested` (Fase Ativa: `pm_dod`).
+* **2026-07-26**: [SPEC-007] Aprovado e transicionado: `test_red` ➔ `code_review` (Fase Ativa: `qa_validation`).
+* **2026-07-26**: [SPEC-007] Aprovado e transicionado: `tech_approved` ➔ `test_red` (Fase Ativa: `developer`).
+* **2026-07-26**: [SPEC-007] Aprovado e transicionado: `ux_approved` ➔ `tech_approved` (Fase Ativa: `qa_tdd`).
+* **2026-07-26**: [SPEC-007] Aprovado e transicionado: `spec_approved` ➔ `ux_approved` (Fase Ativa: `architect`).
+* **2026-07-26**: [SPEC-007] Aprovado e transicionado: `draft` ➔ `spec_approved` (Fase Ativa: `ux`).
+* **2026-07-26**: [SPEC-007] ativada como spec prioritária (topo da fila ativa).
+* **2026-07-26**: [SPEC-006] Aprovado e transicionado: `tested` ➔ `done` (Fase Ativa: `done`).
+* **2026-07-26**: [SPEC-006] ativada como spec prioritária (topo da fila ativa).
+* **2026-07-26**: [SPEC-006] Aprovado e transicionado: `code_review` ➔ `tested` (Fase Ativa: `pm_dod`).
+* **2026-07-26**: [SPEC-006] Aprovado e transicionado: `test_red` ➔ `code_review` (Fase Ativa: `qa_validation`).
+* **2026-07-26**: [SPEC-006] Aprovado e transicionado: `tech_approved` ➔ `test_red` (Fase Ativa: `developer`).
+* **2026-07-26**: [SPEC-006] ativada como spec prioritária (topo da fila ativa).
+* **2026-07-26**: [SPEC-008] ativada como spec prioritária (topo da fila ativa).
+* **2026-07-26**: [SPEC-006] ativada como spec prioritária (topo da fila ativa).
+* **2026-07-26**: Nova especificação `SPEC-011` (`011_extrair_núcleo_de_domínio_de_apppy_logging_estruturado.md`) status `draft` fase `pm`.
+* **2026-07-26**: Nova especificação `SPEC-010` (`010_avisos_de_qualidade_de_dados_histórico_curto_indicadores_neutros.md`) status `draft` fase `pm`.
+* **2026-07-26**: Nova especificação `SPEC-009` (`009_remover_dependência_plotly_não_utilizada.md`) status `draft` fase `pm`.
+* **2026-07-26**: Nova especificação `SPEC-008` (`008_classe_bdrs_remover_opção_morta_ou_suportar_universo.md`) status `draft` fase `pm`.
+* **2026-07-26**: Nova especificação `SPEC-007` (`007_unificar_parse_de_carteira_app_portfolio.md`) status `draft` fase `pm`.
+* **2026-07-26**: Nova especificação `SPEC-006` (`006_harness_devkit_review_estável_pytest_path_ruff.md`) status `tech_approved` fase `qa_tdd`.
+* **2026-07-26**: DevKit-AI atualizado a partir de `devkit-ai` (commit de maturidade): CLI expandida (`doctor`, `log`, `activate`, `hotfix`, `reject`, `sync --migrate-lifecycle`), fase UX (`ux_approved` + agent `ux-designer` + skills `ui-ux`/`microcopy`), templates ADR/tech-spec, hooks, CI `devkit-review`, `docs/GUIA-DO-USUARIO.md`. Specs/state/tech-spec/guidelines de produto preservados. `./devkit doctor` APROVADO.
 * **2026-07-26**: [SPEC-005] Aprovado e transicionado: `tested` ➔ `done` (Próxima Fase: `done`).
 * **2026-07-26**: [SPEC-005] Aprovado e transicionado: `code_review` ➔ `tested` (Próxima Fase: `pm_dod`).
 * **2026-07-26**: [SPEC-005] Aprovado e transicionado: `test_red` ➔ `code_review` (Próxima Fase: `qa_validation`).

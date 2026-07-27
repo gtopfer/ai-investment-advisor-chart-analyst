@@ -82,7 +82,8 @@ def analyze_chart_patterns(ticker: str, price_df: pd.DataFrame) -> TechnicalIndi
             macd_signal="neutral",
             ema_trend="neutral",
             bollinger_position="middle",
-            volatility=0.0
+            volatility=0.0,
+            insufficient_history=True,
         )
 
     current_rsi = _calculate_rsi(price_df)

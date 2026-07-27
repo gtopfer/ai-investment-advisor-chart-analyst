@@ -1,6 +1,7 @@
 from portfolio.import_portfolio import (
     format_positions_as_text,
     import_portfolio_file,
+    parse_current_portfolio,
     parse_portfolio_csv,
     parse_portfolio_txt,
 )
@@ -46,3 +47,18 @@ def test_format_positions_as_text():
     text = format_positions_as_text({"AAPL": 10.0, "MSFT": 20.5})
     assert "AAPL, 10" in text
     assert "MSFT, 20.5" in text
+
+
+def test_parse_current_portfolio_delegates_to_shared_txt_parser():
+    positions = parse_current_portfolio("PETR4.SA, 1000\n# comment\nAAPL34.SA: 500\n")
+    assert positions["PETR4.SA"] == 1000
+    assert positions["AAPL34.SA"] == 500
+
+
+def test_single_numeric_parser_source():
+    """Não deve haver cópia de _parse_numeric_value em app.py."""
+    import app as app_mod
+    import portfolio.import_portfolio as port_mod
+
+    assert hasattr(port_mod, "_parse_numeric_value")
+    assert not hasattr(app_mod, "_parse_numeric_value")

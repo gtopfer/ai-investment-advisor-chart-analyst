@@ -2,7 +2,9 @@
 
 Padrões de implementação para a camada de frontend: componentes, estado, roteamento, acessibilidade, estados de carregamento/erro, estilos.
 
-> Stack e estrutura de camadas: ver `architecture-guidelines.md`.
+> Stack e estrutura de camadas: ver `architecture-guidelines.md`.  
+> Premissas de produto/UI: `design-premises.md`.  
+> Checklist de UX (estados, a11y, microcopy): `.ai/skills/ui-ux.md` e agent `ux-designer.agent.md`.
 
 ---
 

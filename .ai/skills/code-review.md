@@ -1,20 +1,98 @@
-# Skill: Checklist de Code Review Programático
+# Skill: Code Review (programático + manual)
 
-Esta skill define o processo de garantia de qualidade de código. Ela deve ser executada obrigatoriamente pelo desenvolvedor antes de encerrar o desenvolvimento.
+> **Usado por**: Developer (antes de sair de `test_red`); QA (fase `code_review`); qualquer um que rode `./devkit review`.  
+> **Gate do kit**: sem esta skill cumprida, **não** há `./devkit approve` em `test_red` → `code_review`.
 
-## 1. Validação Automatizada (CLI)
-A primeira e mais importante etapa do code review é executar a validação estática programática do projeto.
-- **Comando Obrigatório**: RODE `./devkit review` na raiz do projeto.
-- Este comando detectará automaticamente a stack do projeto, executará o linter, o typecheck e rodará a suíte de testes do projeto, além de fazer uma varredura em busca de comentários `TODO` ou `FIXME` e trechos de código incompletos.
+## Quando usar
 
-## 2. Critérios de Avaliação
-O code review é considerado **APROVADO** apenas se a saída de `./devkit review` retornar sucesso (saída 0) e sem violações. Se o comando reportar falha, o desenvolvedor deve:
-1. Ler o log de erros produzido pela CLI.
-2. Corrigir as falhas diretamente no código.
-3. Executar `./devkit review` novamente até obter sucesso absoluto.
+- Sempre ao final da implementação.  
+- Sempre na validação QA.  
+- Após refactors grandes no loop autônomo.
 
-## 3. Revisão Manual (Auto-Revisão)
-Além da validação automatizada, o desenvolvedor deve fazer uma leitura atenta no git diff para assegurar:
-- **Clean Code**: SOLID, DRY, nomes de variáveis legíveis, documentações claras.
-- **Segurança**: Nenhuma credencial, token ou chave de API salva diretamente no código (hardcoded). Todos os segredos devem vir de variáveis de ambiente.
-- **Sem Placeholders**: Sem comentários desnecessários explicando lógica trivial ou código órfão esquecido.
+## Parte A — Validação automatizada (obrigatória)
+
+Na **raiz do repositório**:
+
+```bash
+./devkit review
+```
+
+O comando deve terminar com **APROVADO** e código de saída `0`.
+
+Ele tipicamente verifica:
+
+| Check | Significado |
+|-------|-------------|
+| TODO/FIXME em comentários de código | Trabalho incompleto proibido |
+| Linter / `py_compile` / equivalente | Estilo e sintaxe |
+| Typecheck / build | Tipos e compilação |
+| Suíte de testes | Comportamento |
+
+### Se REPROVADO
+
+1. Leia o trecho de log (não chute).  
+2. Corrija a causa raiz no arquivo certo.  
+3. Rode `./devkit review` de novo.  
+4. Integre com `.ai/skills/autonomous-loop.md` (máx. 3 tentativas na mesma causa).
+
+**Não** rode `./devkit approve` com review vermelho.
+
+## Parte B — Revisão manual do diff (obrigatória)
+
+Olhe o diff dos arquivos da feature (`git diff` / status). Checklist:
+
+### Correção & escopo
+
+- [ ] Atende aos requisitos da spec ativa (nada a menos crítico; nada a mais oportunista)
+- [ ] Não quebra contratos do `technical-spec.md`
+- [ ] Edge cases citados na spec tratados ou explicitamente fora de escopo
+
+### Design & clareza
+
+- [ ] Nomes legíveis; funções curtas; responsabilidade única
+- [ ] Sem duplicação gritante (DRY com juízo)
+- [ ] Sem “código morto”, prints de debug ou comentários óbvios
+- [ ] Camadas respeitadas (domain sem infra; UI sem SQL direto)
+
+### Segurança & dados
+
+- [ ] Sem segredos, tokens, senhas ou chaves no código
+- [ ] Inputs externos validados na borda
+- [ ] Auth/autorização respeitada se a spec exige
+- [ ] Logs não vazam PII sensível
+
+### Testes
+
+- [ ] Testes da feature existem e passam
+- [ ] Não há `skip` injustificado
+- [ ] Mocks nas dependências externas
+
+### Completude
+
+- [ ] Sem `// TODO`, `// FIXME`, `// o resto do código…`
+- [ ] Mensagens de erro úteis ao usuário/sistema
+- [ ] Migrações/config documentadas se a feature exige
+
+## Parte C — Veredito
+
+| Resultado | Quem | Ação |
+|-----------|------|------|
+| APROVADO (A+B) | Developer | `./devkit approve` → QA |
+| REPROVADO (A ou B) | Developer | Corrigir ou escalar |
+| APROVADO (A+B) | QA | `./devkit approve` → PM DoD |
+| REPROVADO | QA | `./devkit reject` → Developer |
+
+## Anti-padrões
+
+- Confiar só no linter e ignorar o diff  
+- Aprovar com warning de teste flaky “às vezes passa”  
+- Deixar TODO “para depois”  
+- Review de 500 arquivos: peça para fatiar a feature  
+
+## Saída sugerida no chat
+
+```text
+[Code Review] APROVADO | REPROVADO
+CLI: ./devkit review → ...
+Manual: N itens ok / lista de achados
+```

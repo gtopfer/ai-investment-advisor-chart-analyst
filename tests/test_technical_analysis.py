@@ -11,6 +11,7 @@ def test_analyze_chart_patterns_returns_neutral_when_insufficient():
     assert indicators.macd_signal == "neutral"
     assert indicators.support_levels == []
     assert indicators.resistance_levels == []
+    assert indicators.insufficient_history is True
 
 
 def test_analyze_chart_patterns_detects_uptrend_with_history():
@@ -31,3 +32,4 @@ def test_analyze_chart_patterns_detects_uptrend_with_history():
     assert indicators.support_levels
     assert indicators.resistance_levels
     assert indicators.rsi > 50
+    assert indicators.insufficient_history is False

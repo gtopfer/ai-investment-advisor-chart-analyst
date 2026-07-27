@@ -8,4 +8,4 @@ Ao iniciar qualquer interação neste repositório:
 2. **Execute a Rotina de Inicialização**:
    - Sincronize `.ai/specs/` e [`.ai/state.md`](.ai/state.md).
    - Identifique a especificação ativa.
-   - Chame o orquestrador em [`.ai/agents/squad-lead.agent.md`](.ai/agents/squad-lead.agent.md) para conduzir o desenvolvimento com base no status atual (PM -> Architect -> QA/TDD -> Developer -> QA/Validação -> PM/DoD).
+   - Chame o orquestrador em [`.ai/agents/squad-lead.agent.md`](.ai/agents/squad-lead.agent.md) para conduzir o desenvolvimento com base no status atual (PM → UX → Architect → QA/TDD → Developer → QA/Validação → PM/DoD).

@@ -11,6 +11,8 @@ import sys
 import shutil
 import re
 import subprocess
+import json
+from collections import OrderedDict
 from datetime import datetime
 
 # ANSI colors for styling
@@ -36,8 +38,420 @@ def get_slug(text):
     text = re.sub(r"[\s_-]+", "_", text)
     return text.strip("_")
 
+# Máquina de estados canônica (também usada por migrate/doctor/testes)
+STATE_TRANSITIONS = OrderedDict([
+    ("draft", ("spec_approved", "ux")),
+    ("spec_approved", ("ux_approved", "architect")),
+    ("ux_approved", ("tech_approved", "qa_tdd")),
+    ("tech_approved", ("test_red", "developer")),
+    ("test_red", ("code_review", "qa_validation")),
+    ("code_review", ("tested", "pm_dod")),
+    ("tested", ("done", "done")),
+])
+
+REJECT_TRANSITIONS = {
+    "draft": None,
+    "spec_approved": ("draft", "pm"),
+    "ux_approved": ("spec_approved", "ux"),
+    "tech_approved": ("ux_approved", "architect"),
+    "test_red": ("tech_approved", "qa_tdd"),
+    "code_review": ("test_red", "developer"),
+    "tested": ("test_red", "developer"),
+}
+
+STATUS_TO_PHASE = {
+    "draft": "pm",
+    "spec_approved": "ux",
+    "ux_approved": "architect",
+    "tech_approved": "qa_tdd",
+    "test_red": "developer",
+    "code_review": "qa_validation",
+    "tested": "pm_dod",
+    "done": "done",
+}
+
+REQUIRED_AI_FILES = [
+    ".ai/global.instructions",
+    ".ai/state.md",
+    ".ai/template.specs",
+    ".ai/technical-spec.md",
+    ".ai/features.feature",
+    ".ai/agents/squad-lead.agent.md",
+    ".ai/agents/product-manager.agent.md",
+    ".ai/agents/ux-designer.agent.md",
+    ".ai/agents/architect.agent.md",
+    ".ai/agents/qa.agent.md",
+    ".ai/agents/developer.agent.md",
+    ".ai/skills/tdd.md",
+    ".ai/skills/code-review.md",
+    ".ai/skills/autonomous-loop.md",
+    ".ai/skills/ui-ux.md",
+    ".ai/skills/microcopy.md",
+    ".ai/guidelines/design-premises.md",
+    ".ai/guidelines/architecture-guidelines.md",
+    ".ai/guidelines/frontend-guidelines.md",
+    ".ai/guidelines/backend-guidelines.md",
+    ".ai/guidelines/conventions.md",
+]
+
+UI_EXTS = {".tsx", ".jsx", ".vue", ".svelte", ".css", ".scss", ".sass", ".less", ".html"}
+HEX_COLOR_PATTERN = re.compile(r"(?<![\w-])#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b")
+RAW_RGB_PATTERN = re.compile(r"\b(?:rgb|hsl)a?\s*\(", re.I)
+
+
+def append_metric(event, **fields):
+    """Append one JSON line to .ai/metrics.jsonl (best-effort)."""
+    metrics_path = os.path.join(".ai", "metrics.jsonl")
+    try:
+        os.makedirs(".ai", exist_ok=True)
+        rec = {"ts": datetime.now().isoformat(timespec="seconds"), "event": event}
+        rec.update(fields)
+        with open(metrics_path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
+def parse_state_table(lines):
+    """Return list of dicts for data rows: idx, code, title, path, status, phase, date, raw."""
+    rows = []
+    for idx, line in enumerate(lines):
+        if not line.strip().startswith("|"):
+            continue
+        if "Código" in line or re.match(r"^\s*\|\s*-+", line):
+            continue
+        parts = [x.strip() for x in line.split("|")[1:-1]]
+        if len(parts) < 5:
+            continue
+        if not parts[0].startswith("SPEC-"):
+            continue
+        rows.append({
+            "idx": idx,
+            "code": parts[0],
+            "title": parts[1],
+            "path": parts[2],
+            "status": parts[3].strip("` "),
+            "phase": parts[4].strip("` "),
+            "date": parts[5] if len(parts) > 5 else "",
+            "raw": line,
+        })
+    return rows
+
+
+def next_spec_number(specs_dir, state_rows=None):
+    used = set()
+    if os.path.isdir(specs_dir):
+        for f in os.listdir(specs_dir):
+            m = re.match(r"^(\d+)_", f)
+            if m:
+                used.add(int(m.group(1)))
+    state_file = os.path.join(os.path.dirname(os.path.abspath(specs_dir)), "state.md")
+    if os.path.isfile(state_file):
+        try:
+            with open(state_file, "r", encoding="utf-8") as fh:
+                for r in parse_state_table(fh.read().splitlines()):
+                    mm = re.match(r"SPEC-(\d+)", r.get("code", ""), re.I)
+                    if mm:
+                        used.add(int(mm.group(1)))
+        except Exception:
+            pass
+    if state_rows:
+        for r in state_rows:
+            mm = re.match(r"SPEC-(\d+)", r.get("code", ""), re.I)
+            if mm:
+                used.add(int(mm.group(1)))
+    return (max(used) + 1) if used else 1
+
+
+def build_spec_markdown(title, persona, action, value, requirements, extra_sections=""):
+    spec_content = f"""# Especificação de Feature: {title}
+
+## 1. Contexto & Valor de Negócio
+- **Como um(a)** {persona or "[persona]"}
+- **Eu quero** {action or "[ação]"}
+- **Para que** {value or "[valor]"}
+
+## 2. Requisitos & Restrições
+"""
+    if requirements:
+        for r in requirements:
+            spec_content += f"- Requisito: {r}\n"
+    else:
+        spec_content += "- Requisito 1: [Descreva o requisito principal aqui]\n"
+
+    spec_content += """
+## 3. Expectativas de UI/UX (se aplicável)
+- Há interface de usuário? Sim / Não (se Não, justifique)
+- (Detalhamento fino na fase UX: telas, fluxo, estados, componentes, microcopy)
+
+### Definition of Done — UX (fase `spec_approved`)
+- [ ] Telas/superfícies listadas **ou** N/A justificado
+- [ ] Estados loading / empty / error / success cobertos (se UI)
+- [ ] Microcopy-chave (CTAs, erros, empty) definida (skill microcopy)
+- [ ] Alinhado a `.ai/guidelines/design-premises.md`
+- [ ] Aceite humano na fase UX
+
+## 4. Checklist Técnico / Notas
+- (A preencher cooperativamente com a IA no chat)
+
+## 5. Definition of Ready (DoR — Pronto para Começar)
+- [ ] O problema de negócio e o resultado desejado estão claros
+- [ ] Dependências externas (APIs, credenciais, dados) estão disponíveis ou explicitamente adiadas
+- [ ] Perguntas em aberto foram respondidas por quem pediu
+
+## 6. Definition of Done (DoD — Pronto/Concluído)
+- [ ] Todos os requisitos da seção 2 estão atendidos
+- [ ] Os critérios de aceitação (cenários Gherkin em `.ai/features.feature` ou equivalente) passam
+- [ ] Documentação atualizada: entrada adicionada em `docs/CHANGELOG.md`; nova entrada na seção 9 de `.ai/technical-spec.md` se uma decisão arquitetural foi tomada
+- [ ] Nenhuma regressão conhecida em funcionalidades adjacentes
+- [ ] Se HOTFIX: auditoria pós-entrega (o que foi pulado e por quê) registrada no CHANGELOG
+"""
+    if extra_sections:
+        spec_content += "\n" + extra_sections
+    return spec_content
+
+
+def register_spec_in_state(state_file, spec_code, title, filename, status="draft", phase="pm"):
+    with open(state_file, "r", encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    today = datetime.now().strftime("%Y-%m-%d")
+    new_row = f"| {spec_code} | {title} | `.ai/specs/{filename}` | `{status}` | `{phase}` | {today} |"
+    table_idx = -1
+    for idx, l in enumerate(lines):
+        if l.strip().startswith("|") and "SPEC-" in l:
+            table_idx = idx
+    if table_idx == -1:
+        for idx, l in enumerate(lines):
+            if l.strip().startswith("|") and "---" in l:
+                table_idx = idx
+                break
+    if table_idx != -1:
+        lines.insert(table_idx + 1, new_row)
+    else:
+        lines.append(new_row)
+    log_line = (
+        f"* **{today}**: Nova especificação `{spec_code}` (`{filename}`) "
+        f"status `{status}` fase `{phase}`."
+    )
+    lines = _insert_state_log(lines, log_line)
+    _write_state(state_file, lines)
+
+
+# --- Templates limpos aplicados pelo `init` (slate do projeto-alvo) ---
+
+CLEAN_TECHNICAL_SPEC = """# Especificação Técnica: [Nome do Projeto ou Feature]
+
+**Última atualização:** AAAA-MM-DD
+**Versão:** X.Y
+**Veredito arquitetural:** Confirmado | Desafiado (ver seção 9)
+
+> Preenchido e mantido pelo agente Architect (`.ai/agents/architect.agent.md`). É o par técnico de `.ai/template.specs` (que é do PM, em linguagem de negócio) — juntos, esses dois arquivos são as únicas duas specs deste kit: **o quê** (requisito do app) e **como** (construção técnica).
+
+## 1. Visão Geral
+[2-4 frases: o que o sistema/feature faz e que problema técnico resolve]
+
+## 2. Diagrama de Arquitetura
+
+[Diagrama Mermaid principal — `graph TD` para dependências entre camadas]
+
+## 3. Fluxo Principal
+
+[`sequenceDiagram` ou `flowchart` descrevendo o caminho feliz]
+
+## 4. Stack
+
+| Camada | Tecnologia | Versão | Justificativa |
+|--------|-----------|--------|---------------|
+| ... | ... | ... | ... |
+
+## 5. Componentes & Contratos de Interface
+
+| Componente | Responsabilidade | Tecnologia |
+|-----------|-----------------|------------|
+| ... | ... | ... |
+
+```typescript
+// Contratos de interface entre camadas — o QA usa isto para escrever mocks corretos
+```
+
+## 6. Dependências Externas
+
+| Sistema | Tipo | Protocolo | Observações |
+|--------|------|----------|-------|
+| ... | ... | ... | ... |
+
+## 7. Modelo de Dados
+
+[`erDiagram` — omitir se não houver persistência]
+
+## 8. Riscos e Mitigações
+
+| Risco | Severidade | Mitigação |
+|-------|-----------|-----------|
+| ... | 🔴/🟡/🟢 | ... |
+
+## 9. Histórico de Decisões Arquiteturais
+
+Cada decisão vira uma entrada nova aqui — mais recente no topo. Substitui ADRs em arquivos separados: o histórico completo vive neste único arquivo.
+
+### AAAA-MM-DD — [Título da decisão]
+**Contexto:** [por que esta decisão foi necessária]
+**Decisão:** [o que foi decidido e como será implementado]
+**Alternativas consideradas:** [alternativa → por que foi descartada]
+**Trade-offs:** Ganha-se: [...] / Perde-se: [...]
+**Consequências:** [impacto prático no código e em decisões futuras]
+
+## 10. Histórico de Versões
+
+| Versão | Data | Mudança |
+|--------|------|---------|
+| 1.0 | AAAA-MM-DD | Criação inicial |
+"""
+
+CLEAN_FEATURES = """# language: pt
+# Nota: o Gherkin tem suporte nativo a português — a diretiva "# language: pt" ativa
+# as palavras-chave Funcionalidade/Cenário/Dado/Quando/Então/E abaixo.
+# Substitua (ou acrescente) cenários conforme a feature ativa em `.ai/specs/`.
+# Ferramentas de BDD (Cucumber, Behave, etc.) reconhecem esta sintaxe.
+
+Funcionalidade: [Nome da Feature]
+
+  Como um(a) [persona]
+  Eu quero [ação]
+  Para que [valor]
+
+  Cenário: [Comportamento principal — a preencher com o QA/PM]
+    Dado que [pré-condição]
+    Quando [ação do usuário ou sistema]
+    Então [resultado observável esperado]
+"""
+
+CLEAN_SETUP_SPEC = """# Especificação de Feature: Configuração Inicial
+
+## 1. Contexto & Valor de Negócio
+- **Como um(a)** desenvolvedor(a) ou time que usa assistentes de IA para codar
+- **Eu quero** uma estrutura DevKit-AI pronta na raiz do repositório
+- **Para que** o fluxo spec-driven (PM → Architect → QA → Developer) e a CLI `./devkit` estejam disponíveis desde o primeiro dia
+
+## 2. Requisitos & Restrições
+- Requisito 1: Existir o diretório `.ai/` com instruções globais, state tracker, template de specs, technical-spec, agents, skills, guidelines e pasta `specs/`
+- Requisito 2: Existir a CLI executável `./devkit` com os comandos `init`, `propose`, `status`, `sync`, `approve`, `reject`, `review` e `help`
+- Requisito 3: Existir pontos de entrada de contexto para IAs (`CLAUDE.md`, `GEMINI.md`) apontando para a rotina de inicialização
+- Requisito 4: Existir `docs/README.md` e `docs/CHANGELOG.md` para documentação de entregas
+- Requisito 5: A stack de produto do app-alvo permanece `_(a definir)_` até a primeira feature real passar pelo Architect
+- Restrição 1: Este setup não cria `src/`, `backend/`, `frontend/` nem escolhe framework de aplicação
+
+## 3. Expectativas de UI/UX (se aplicável)
+- Não aplicável (infraestrutura de processo e CLI, sem interface de produto)
+
+## 4. Checklist Técnico / Notas
+- Precisa de mudança no banco de dados: Não
+- Novos pacotes/dependências: Não (CLI em Python 3 da stdlib)
+- Regras de segurança/permissão: N/A
+
+## 5. Definition of Ready (DoR — Pronto para Começar)
+- [x] O problema de negócio e o resultado desejado estão claros
+- [x] Dependências externas (APIs, credenciais, dados) estão disponíveis ou explicitamente adiadas
+- [x] Perguntas em aberto foram respondidas por quem pediu
+
+## 6. Definition of Done (DoD — Pronto/Concluído)
+- [x] Todos os requisitos da seção 2 estão atendidos
+- [x] Os critérios de aceitação (estrutura e comandos da CLI) são verificáveis no repositório
+- [x] Documentação atualizada: entrada em `docs/CHANGELOG.md`
+- [x] Nenhuma regressão conhecida em funcionalidades adjacentes
+"""
+
+def _write_text(path, content):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(content)
+
+
+def sanitize_initialized_project(target_dir):
+    """Remove rastro do meta-repo e deixa slate limpo no projeto-alvo."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    ai_dir = os.path.join(target_dir, ".ai")
+    specs_dir = os.path.join(ai_dir, "specs")
+
+    # technical-spec e features: sempre esqueleto limpo
+    _write_text(os.path.join(ai_dir, "technical-spec.md"), CLEAN_TECHNICAL_SPEC)
+    _write_text(os.path.join(ai_dir, "features.feature"), CLEAN_FEATURES)
+
+    # specs: só README + 000_setup (remove specs de feature do meta-repo)
+    os.makedirs(specs_dir, exist_ok=True)
+    for name in os.listdir(specs_dir):
+        path = os.path.join(specs_dir, name)
+        if name in ("README.md", "000_setup.md"):
+            continue
+        if os.path.isfile(path):
+            os.remove(path)
+    _write_text(os.path.join(specs_dir, "000_setup.md"), CLEAN_SETUP_SPEC)
+
+    clean_state = f"""# Estado do Desenvolvimento (Task Tracker)
+
+Este arquivo é lido e atualizado automaticamente pela IA para rastrear o status de cada especificação no diretório `.ai/specs/` e gerenciar a transição de fases.
+
+## Como funciona
+1. **Rastreamento Automático**: A IA verifica os arquivos na pasta `.ai/specs/` e atualiza a tabela abaixo com o status correspondente.
+2. **Ciclo de Vida (Fases)**:
+   - `draft` (Rascunho inicial do PM)
+   - `spec_approved` (Requisitos de negócio aprovados; aguardando UI/UX)
+   - `ux_approved` (UI/UX aprovada; aguardando arquitetura técnica)
+   - `tech_approved` (Especificação técnica aprovada; aguardando testes TDD)
+   - `test_red` (Testes TDD escritos e falhando; aguardando implementação)
+   - `code_review` (Implementado; validação de QA)
+   - `tested` (Testes ok; validação de DoD do PM)
+   - `done` (Entregue, documentado e concluído)
+
+---
+
+## Lista de Especificações Ativas
+
+| Código | Título da Spec | Caminho do Arquivo | Status Atual | Fase Ativa | Última Atualização |
+|--------|----------------|-------------------|--------------|------------|---------------------|
+| SPEC-000 | Configuração Inicial | `.ai/specs/000_setup.md` | `done` | `done` | {today} |
+
+---
+
+## Histórico de Execuções Recentes
+
+* **{today}**: DevKit-AI inicializado via `./devkit init` (slate limpo).
+"""
+    _write_text(os.path.join(ai_dir, "state.md"), clean_state)
+
+    docs_dir = os.path.join(target_dir, "docs")
+    _write_text(
+        os.path.join(docs_dir, "CHANGELOG.md"),
+        """# Changelog
+
+Todas as mudanças notáveis deste projeto são documentadas aqui. O formato segue livremente o [Keep a Changelog](https://keepachangelog.com/).
+
+Cada entrada deve descrever impacto (o que mudou para usuários/sistema), não detalhe de implementação.
+
+## [Não Lançado]
+
+### Adicionado
+- Estrutura inicial com DevKit-AI (`./devkit init`)
+""",
+    )
+    _write_text(
+        os.path.join(docs_dir, "README.md"),
+        """# Documentação
+
+## Comece aqui
+1. **[`GUIA-DO-USUARIO.md`](GUIA-DO-USUARIO.md)** — jornada contínua do DevKit (do init ao done)
+2. [`CHANGELOG.md`](CHANGELOG.md) — mudanças notáveis
+3. [`.ai/`](../.ai/) — specs, agents, skills, state
+
+## Histórico de Features
+_(vazio — adicione um link aqui a cada spec de feature concluída)_
+""",
+    )
+    print_info("Slate do projeto-alvo sanitizado (specs de feature do meta-repo removidas).")
+
+
 def cmd_init(target_dir):
-    """Copies devkit-ai structure to target_dir."""
+    """Copies devkit-ai structure to target_dir and sanitizes project-specific tracks."""
     if not target_dir:
         target_dir = os.getcwd()
     else:
@@ -46,10 +460,12 @@ def cmd_init(target_dir):
     print_info(f"Inicializando DevKit-AI em: {target_dir}")
 
     source_dir = os.path.dirname(os.path.abspath(__file__))
-    to_copy_dirs = [".ai", "docs"]
+    to_copy_dirs = [".ai", "docs", "hooks"]
     to_copy_files = ["CLAUDE.md", "GEMINI.md", "devkit"]
+    # .github/workflows (CI template) — copiar arquivo a arquivo se existir
 
-    if os.path.abspath(source_dir) == os.path.abspath(target_dir):
+    # realpath: em macOS /var e /private/var são o mesmo dir; abspath sozinho falha
+    if os.path.realpath(source_dir) == os.path.realpath(target_dir):
         print_err("Erro: O diretório de destino é o próprio repositório do devkit-ai.")
         sys.exit(1)
 
@@ -76,11 +492,30 @@ def cmd_init(target_dir):
                 os.chmod(dst_path, 0o755)
             print(f"Copiado arquivo: {item}")
 
+    # CI workflow template (não apaga outros workflows do alvo)
+    gh_src = os.path.join(source_dir, ".github", "workflows", "devkit-review.yml")
+    if os.path.isfile(gh_src):
+        gh_dst_dir = os.path.join(target_dir, ".github", "workflows")
+        os.makedirs(gh_dst_dir, exist_ok=True)
+        gh_dst = os.path.join(gh_dst_dir, "devkit-review.yml")
+        shutil.copy2(gh_src, gh_dst)
+        print("Copiado arquivo: .github/workflows/devkit-review.yml")
+
+    sanitize_initialized_project(target_dir)
+
     print_success(f"\n{BOLD}DevKit-AI inicializado com sucesso em {target_dir}!{RESET}")
     print("Próximo passo sugerido: crie uma nova especificação rodando `./devkit propose`")
 
-def cmd_propose():
-    """Interactive wizard to create a new spec and register it in state.md."""
+def cmd_propose(argv=None):
+    """Create a new spec interactively or via flags.
+
+    Flags (non-interactive when --title is present):
+      --title TEXT --persona TEXT --want TEXT --so-that TEXT
+      --req TEXT (repeatable)
+    """
+    if argv is None:
+        argv = sys.argv[2:]
+
     ai_dir = os.path.join(os.getcwd(), ".ai")
     specs_dir = os.path.join(ai_dir, "specs")
     state_file = os.path.join(ai_dir, "state.md")
@@ -92,74 +527,61 @@ def cmd_propose():
 
     os.makedirs(specs_dir, exist_ok=True)
 
-    print(f"\n{BOLD}{BLUE}=== WIZARD DE ESPECIFICAÇÃO DE FEATURE ==={RESET}\n")
-
-    title = input("Digite o título da funcionalidade: ").strip()
-    if not title:
-        print_err("Erro: O título não pode ser vazio.")
+    # --- parse flags ---
+    title = persona = action = value = None
+    requirements = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--title" and i + 1 < len(argv):
+            title = argv[i + 1]; i += 2; continue
+        if a == "--persona" and i + 1 < len(argv):
+            persona = argv[i + 1]; i += 2; continue
+        if a in ("--want", "--action") and i + 1 < len(argv):
+            action = argv[i + 1]; i += 2; continue
+        if a in ("--so-that", "--value") and i + 1 < len(argv):
+            value = argv[i + 1]; i += 2; continue
+        if a == "--req" and i + 1 < len(argv):
+            requirements.append(argv[i + 1]); i += 2; continue
+        if a in ("-h", "--help"):
+            print("Uso: ./devkit propose [--title T --persona P --want A --so-that V --req R ...]")
+            return
+        print_err(f"Argumento desconhecido em propose: {a}")
         sys.exit(1)
 
-    print("\n--- Descreva a User Story Básica ---")
-    persona = input("Como um(a) (ex: usuário logado): ").strip()
-    action = input("Eu quero (ex: filtrar tickets por status): ").strip()
-    value = input("Para que eu possa (ex: encontrar itens mais rápido): ").strip()
+    non_interactive = title is not None
+    if non_interactive:
+        if not title.strip():
+            print_err("Erro: --title não pode ser vazio.")
+            sys.exit(1)
+        persona = persona or "[persona]"
+        action = action or "[ação]"
+        value = value or "[valor]"
+    else:
+        print(f"\n{BOLD}{BLUE}=== WIZARD DE ESPECIFICAÇÃO DE FEATURE ==={RESET}\n")
+        title = input("Digite o título da funcionalidade: ").strip()
+        if not title:
+            print_err("Erro: O título não pode ser vazio.")
+            sys.exit(1)
+        print("\n--- Descreva a User Story Básica ---")
+        persona = input("Como um(a) (ex: usuário logado): ").strip()
+        action = input("Eu quero (ex: filtrar tickets por status): ").strip()
+        value = input("Para que eu possa (ex: encontrar itens mais rápido): ").strip()
+        print("\n--- Digite os Requisitos Principais (uma linha por requisito, linha vazia encerra) ---")
+        requirements = []
+        while True:
+            req = input(f"Requisito {len(requirements)+1}: ").strip()
+            if not req:
+                break
+            requirements.append(req)
 
-    print("\n--- Digite os Requisitos Principais (uma linha por requisito, linha vazia encerra) ---")
-    requirements = []
-    while True:
-        req = input(f"Requisito {len(requirements)+1}: ").strip()
-        if not req:
-            break
-        requirements.append(req)
-
-    existing_specs = []
-    for f in os.listdir(specs_dir):
-        if f.endswith(".md") and f != "README.md":
-            match = re.match(r"^(\d+)_", f)
-            if match:
-                existing_specs.append(int(match.group(1)))
-
-    next_num = max(existing_specs) + 1 if existing_specs else 1
+    next_num = next_spec_number(specs_dir)
     seq_str = f"{next_num:03d}"
     spec_code = f"SPEC-{seq_str}"
-    
     file_slug = get_slug(title)
     filename = f"{seq_str}_{file_slug}.md"
     filepath = os.path.join(specs_dir, filename)
-
-    spec_content = f"""# Especificação de Feature: {title}
-
-## 1. Contexto & Valor de Negócio
-- **Como um(a)** {persona or "[persona]"}
-- **Eu quero** {action or "[ação]"}
-- **Para que** {value or "[valor]"}
-
-## 2. Requisitos & Restrições
-"""
-    if requirements:
-        for r in requirements:
-            spec_content += f"- Requisito: {r}\n"
-    else:
-        spec_content += "- Requisito 1: [Descreva o requisito principal aqui]\n"
-
-    spec_content += """
-## 3. Expectativas de UI/UX (se aplicável)
-- (A preencher cooperativamente com a IA no chat)
-
-## 4. Checklist Técnico / Notas
-- (A preencher cooperativamente com a IA no chat)
-
-## 5. Definition of Ready (DoR — Pronto para Começar)
-- [ ] O problema de negócio e o resultado desejado estão claros
-- [ ] Dependências externas (APIs, credenciais, dados) estão disponíveis ou explicitamente adiadas
-- [ ] Perguntas em aberto foram respondidas por quem pediu
-
-## 6. Definition of Done (DoD — Pronto/Concluído)
-- [ ] Todos os requisitos da seção 2 estão atendidos
-- [ ] Os critérios de aceitação (cenários Gherkin em `.ai/features.feature` ou equivalente) passam
-- [ ] Documentação atualizada: entrada adicionada em `docs/CHANGELOG.md`; nova entrada na seção 9 de `.ai/technical-spec.md` se uma decisão arquitetural foi tomada
-- [ ] Nenhuma regressão conhecida em funcionalidades adjacentes
-"""
+    spec_content = build_spec_markdown(title, persona, action, value, requirements)
 
     try:
         with open(filepath, "w", encoding="utf-8") as sf:
@@ -168,60 +590,17 @@ def cmd_propose():
         print_err(f"Erro ao salvar arquivo de especificação: {e}")
         sys.exit(1)
 
-    try:
-        with open(state_file, "r", encoding="utf-8") as f:
-            state_content = f.read()
-    except Exception as e:
-        print_err(f"Erro ao ler arquivo de estado: {e}")
-        sys.exit(1)
-
-    new_row = f"| {spec_code} | {title} | `.ai/specs/{filename}` | `draft` | `pm` | {datetime.now().strftime('%Y-%m-%d')} |"
-    
-    lines = state_content.splitlines()
-    table_idx = -1
-    for idx, l in enumerate(lines):
-        if l.strip().startswith("|") and "SPEC-" in l:
-            table_idx = idx
-
-    if table_idx != -1:
-        lines.insert(table_idx + 1, new_row)
-    else:
-        for idx, l in enumerate(lines):
-            if l.strip().startswith("|") and "---" in l:
-                table_idx = idx
-                break
-        if table_idx != -1:
-            lines.insert(table_idx + 1, new_row)
-        else:
-            lines.append(new_row)
-
-    log_line = f"* **{datetime.now().strftime('%Y-%m-%d')}**: Nova especificação registrada via CLI (`{filename}`). Status definido como `draft`."
-    log_inserted = False
-    for idx, l in enumerate(lines):
-        if "Histórico de Execuções Recentes" in l:
-            lines.insert(idx + 2, log_line)
-            log_inserted = True
-            break
-    if not log_inserted:
-        lines.append(log_line)
-
-    new_state_content = "\n".join(lines) + "\n"
-
-    try:
-        with open(state_file, "w", encoding="utf-8") as f:
-            f.write(new_state_content)
-    except Exception as e:
-        print_err(f"Erro ao salvar arquivo de estado: {e}")
-        sys.exit(1)
+    register_spec_in_state(state_file, spec_code, title, filename, "draft", "pm")
+    append_metric("propose", code=spec_code, title=title, mode="flags" if non_interactive else "wizard")
 
     print_success(f"\n{BOLD}✅ Especificação '{spec_code}' criada com sucesso!{RESET}")
     print(f"Caminho: {BLUE}.ai/specs/{filename}{RESET}")
     print(f"Registrada em: {BLUE}.ai/state.md{RESET}")
     print("\n" + "=" * 60)
     print(f"{BOLD}Próximo passo no Chat da IA:{RESET}")
-    print(f"Abra a sua interface de chat com a IA e envie a seguinte mensagem:")
     print(f"{YELLOW}'Vamos refinar e detalhar os requisitos da {spec_code} ({title}) juntos?'{RESET}")
     print("=" * 60 + "\n")
+
 
 def cmd_status():
     """Reads state.md and prints a beautifully aligned status table."""
@@ -339,27 +718,19 @@ def cmd_approve():
 
     code, title, path, status, phase = active_row[0], active_row[1], active_row[2], active_row[3].strip("` "), active_row[4].strip("` ")
 
-    state_transitions = {
-        "draft": ("spec_approved", "architect"),
-        "spec_approved": ("tech_approved", "qa_tdd"),
-        "tech_approved": ("test_red", "developer"),
-        "test_red": ("code_review", "qa_validation"),
-        "code_review": ("tested", "pm_dod"),
-        "tested": ("done", "done")
-    }
-
-    if status not in state_transitions:
+    # draft → PM; spec_approved → UX; ux_approved → Architect; ...
+    if status not in STATE_TRANSITIONS:
         print_err(f"Erro: Status '{status}' desconhecido para a especificação {code}.")
         sys.exit(1)
 
-    new_status, new_phase = state_transitions[status]
+    new_status, new_phase = STATE_TRANSITIONS[status]
 
     # Update row
     updated_row = f"| {code} | {title} | {path} | `{new_status}` | `{new_phase}` | {datetime.now().strftime('%Y-%m-%d')} |"
     lines[active_row_idx] = updated_row
 
     # Append to log
-    log_line = f"* **{datetime.now().strftime('%Y-%m-%d')}**: [{code}] Aprovado e transicionado: `{status}` ➔ `{new_status}` (Próxima Fase: `{new_phase}`)."
+    log_line = f"* **{datetime.now().strftime('%Y-%m-%d')}**: [{code}] Aprovado e transicionado: `{status}` ➔ `{new_status}` (Fase Ativa: `{new_phase}`)."
     log_inserted = False
     for idx, l in enumerate(lines):
         if "Histórico de Execuções Recentes" in l:
@@ -381,19 +752,340 @@ def cmd_approve():
     print_success(f"\n{BOLD}✅ [{code}] Aprovado e Transicionado!{RESET}")
     print(f"Status: {YELLOW}`{status}` ➔ `{new_status}`{RESET}")
     print(f"Fase Ativa: {BLUE}`{new_phase}`{RESET}\n")
+    append_metric("approve", code=code, from_status=status, to_status=new_status, phase=new_phase)
+
+
+
+def _find_active_spec_row(lines):
+    """Return (idx, row) of first non-done table row, or (-1, [])."""
+    for idx, line in enumerate(lines):
+        if line.strip().startswith("|") and not ("Código" in line or "---" in line):
+            row = [x.strip() for x in line.split("|")[1:-1]]
+            if len(row) >= 4 and row[3].strip("` ") != "done":
+                return idx, row
+    return -1, []
+
+
+def _insert_state_log(lines, log_line):
+    for idx, l in enumerate(lines):
+        if "Histórico de Execuções Recentes" in l:
+            lines.insert(idx + 2, log_line)
+            return lines
+    lines.append(log_line)
+    return lines
+
+
+def _write_state(state_file, lines):
+    try:
+        with open(state_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+    except Exception as e:
+        print_err(f"Erro ao atualizar arquivo de estado: {e}")
+        sys.exit(1)
+
+
+def cmd_reject():
+    """Reverts the active task one step (or to test_red from QA/DoD failure stages)."""
+    ai_dir = os.path.join(os.getcwd(), ".ai")
+    state_file = os.path.join(ai_dir, "state.md")
+
+    if not os.path.exists(state_file):
+        print_err("Erro: Arquivo '.ai/state.md' não encontrado.")
+        sys.exit(1)
+
+    try:
+        with open(state_file, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception as e:
+        print_err(f"Erro ao ler arquivo de estado: {e}")
+        sys.exit(1)
+
+    lines = content.splitlines()
+    active_row_idx, active_row = _find_active_spec_row(lines)
+
+    if active_row_idx == -1:
+        print_info("Nenhuma especificação ativa para rejeitar.")
+        return
+
+    code, title, path = active_row[0], active_row[1], active_row[2]
+    status = active_row[3].strip("` ")
+    phase = active_row[4].strip("` ") if len(active_row) > 4 else ""
+
+    # Retrocesso alinhado ao squad-lead:
+    # - code_review / tested ➔ test_red (devolução ao Developer)
+    # - demais status ➔ um passo anterior no fluxo feliz
+    if status not in REJECT_TRANSITIONS:
+        print_err(f"Erro: Status '{status}' desconhecido para a especificação {code}.")
+        sys.exit(1)
+
+    target = REJECT_TRANSITIONS[status]
+    if target is None:
+        print_info(f"[{code}] já está em `draft` — não há fase anterior para rejeitar.")
+        return
+
+    new_status, new_phase = target
+    updated_row = (
+        f"| {code} | {title} | {path} | `{new_status}` | `{new_phase}` | "
+        f"{datetime.now().strftime('%Y-%m-%d')} |"
+    )
+    lines[active_row_idx] = updated_row
+    log_line = (
+        f"* **{datetime.now().strftime('%Y-%m-%d')}**: [{code}] Rejeitado e retrocedido: "
+        f"`{status}` ➔ `{new_status}` (Fase Ativa: `{new_phase}`)."
+    )
+    lines = _insert_state_log(lines, log_line)
+    _write_state(state_file, lines)
+
+    print_success(f"\n{BOLD}↩ [{code}] Rejeitado e Retrocedido!{RESET}")
+    print(f"Status: {YELLOW}`{status}` ➔ `{new_status}`{RESET}")
+    print(f"Fase Ativa: {BLUE}`{new_phase}`{RESET}\n")
+    append_metric("reject", code=code, from_status=status, to_status=new_status, phase=new_phase)
+
+
+
+def normalize_repo_path(path):
+    """Normalize a repo-relative path from state.md (handles backticks; never lstrip './')."""
+    p = path.strip().strip("`").strip().replace("\\", "/")
+    if p.startswith("./"):
+        p = p[2:]
+    return p
+
+
+def cmd_sync(argv=None):
+    """Registers orphan specs from .ai/specs/ into state.md; reports missing files.
+
+    Flags:
+      --migrate-lifecycle  Corrige fases legadas (ex.: spec_approved+architect → ux)
+    """
+    if argv is None:
+        argv = sys.argv[2:]
+    do_migrate = "--migrate-lifecycle" in argv
+
+    ai_dir = os.path.join(os.getcwd(), ".ai")
+    specs_dir = os.path.join(ai_dir, "specs")
+    state_file = os.path.join(ai_dir, "state.md")
+
+    if not os.path.exists(ai_dir) or not os.path.exists(state_file):
+        print_err("Erro: Diretório '.ai' ou '.ai/state.md' não encontrado.")
+        sys.exit(1)
+
+    os.makedirs(specs_dir, exist_ok=True)
+
+    try:
+        with open(state_file, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception as e:
+        print_err(f"Erro ao ler arquivo de estado: {e}")
+        sys.exit(1)
+
+    lines = content.splitlines()
+
+    migrated = []
+    if do_migrate:
+        today = datetime.now().strftime("%Y-%m-%d")
+        for row in parse_state_table(lines):
+            status, phase = row["status"], row["phase"]
+            expected = STATUS_TO_PHASE.get(status)
+            # legado: spec_approved com phase architect (pré-UX)
+            if status == "spec_approved" and phase == "architect":
+                expected = "ux"
+            if expected and phase != expected and status != "done":
+                new_line = (
+                    f"| {row['code']} | {row['title']} | {row['path']} | "
+                    f"`{status}` | `{expected}` | {today} |"
+                )
+                lines[row["idx"]] = new_line
+                migrated.append((row["code"], phase, expected, status))
+        if migrated:
+            log_line = (
+                f"* **{today}**: Migração de lifecycle: "
+                + ", ".join(f"{c} phase `{a}`→`{b}`" for c, a, b, _ in migrated)
+                + "."
+            )
+            lines = _insert_state_log(lines, log_line)
+            _write_state(state_file, lines)
+            # re-read
+            with open(state_file, "r", encoding="utf-8") as f:
+                lines = f.read().splitlines()
+
+    # Paths already registered in state.md
+    registered_paths = set()
+    registered_codes = set()
+    state_rows = []  # (idx, row)
+    for idx, line in enumerate(lines):
+        if line.strip().startswith("|") and not ("Código" in line or "---" in line):
+            row = [x.strip() for x in line.split("|")[1:-1]]
+            if len(row) >= 3:
+                state_rows.append((idx, row))
+                path_clean = normalize_repo_path(row[2])
+                registered_paths.add(path_clean)
+                registered_codes.add(row[0].strip())
+
+    # Spec files on disk
+    disk_files = []
+    for name in sorted(os.listdir(specs_dir)):
+        if not name.endswith(".md") or name == "README.md":
+            continue
+        rel = f".ai/specs/{name}"
+        disk_files.append((name, rel, os.path.join(specs_dir, name)))
+
+    disk_paths = {rel for _, rel, _ in disk_files}
+
+    # Orphan state rows (path missing on disk)
+    orphans = []
+    for idx, row in state_rows:
+        path_clean = normalize_repo_path(row[2])
+        if path_clean not in disk_paths and not os.path.exists(path_clean):
+            orphans.append((row[0], path_clean))
+
+    # New files not in state
+    added = []
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    # Determine next SPEC number from disk + state
+    used_nums = set()
+    for name, rel, _ in disk_files:
+        m = re.match(r"^(\d+)_", name)
+        if m:
+            used_nums.add(int(m.group(1)))
+    for code in registered_codes:
+        m = re.match(r"SPEC-(\d+)", code, re.I)
+        if m:
+            used_nums.add(int(m.group(1)))
+
+    for name, rel, full in disk_files:
+        if rel in registered_paths:
+            continue
+        # Title from first H1 or filename
+        title = get_slug(name).replace("_", " ").title()
+        try:
+            with open(full, "r", encoding="utf-8") as sf:
+                for line in sf:
+                    if line.startswith("# "):
+                        title = line[2:].strip()
+                        # strip common prefix
+                        for prefix in ("Especificação de Feature:", "Especificação:", "Feature:"):
+                            if title.lower().startswith(prefix.lower()):
+                                title = title[len(prefix):].strip()
+                        break
+        except Exception:
+            pass
+
+        m = re.match(r"^(\d+)_", name)
+        if m:
+            num = int(m.group(1))
+            spec_code = f"SPEC-{num:03d}"
+        else:
+            num = (max(used_nums) + 1) if used_nums else 1
+            while num in used_nums:
+                num += 1
+            used_nums.add(num)
+            spec_code = f"SPEC-{num:03d}"
+
+        if spec_code in registered_codes:
+            # collision: bump
+            num = (max(used_nums) + 1) if used_nums else 1
+            while num in used_nums or f"SPEC-{num:03d}" in registered_codes:
+                num += 1
+            used_nums.add(num)
+            spec_code = f"SPEC-{num:03d}"
+
+        new_row = f"| {spec_code} | {title} | `{rel}` | `draft` | `pm` | {today} |"
+
+        # Insert after last table row or after separator
+        table_idx = -1
+        for idx, l in enumerate(lines):
+            if l.strip().startswith("|") and "SPEC-" in l:
+                table_idx = idx
+        if table_idx == -1:
+            for idx, l in enumerate(lines):
+                if l.strip().startswith("|") and "---" in l:
+                    table_idx = idx
+                    break
+        if table_idx != -1:
+            lines.insert(table_idx + 1, new_row)
+        else:
+            lines.append(new_row)
+
+        registered_paths.add(rel)
+        registered_codes.add(spec_code)
+        used_nums.add(num)
+        added.append((spec_code, title, rel))
+
+        log_line = (
+            f"* **{today}**: Sync registrou `{rel}` como `{spec_code}` "
+            f"(status `draft`, fase `pm`)."
+        )
+        lines = _insert_state_log(lines, log_line)
+
+    if added:
+        _write_state(state_file, lines)
+
+    print(f"\n{BOLD}{BLUE}=== SYNC .ai/specs/ ↔ state.md ==={RESET}\n")
+    if added:
+        print_success(f"Registradas {len(added)} especificação(ões) nova(s):")
+        for code, title, rel in added:
+            print(f"  + {code} — {title} ({rel}) → `draft` / `pm`")
+    else:
+        print_info("Nenhuma spec órfã em disco — state.md já cobre todos os arquivos.")
+
+    if orphans:
+        print(f"\n{YELLOW}Aviso: {len(orphans)} linha(s) no state.md sem arquivo correspondente:{RESET}")
+        for code, path in orphans:
+            print(f"  ! {code} → {path} (arquivo ausente)")
+        print(f"{YELLOW}Remova a linha manualmente ou restaure o arquivo.{RESET}")
+    else:
+        print_info("Nenhuma linha órfã no state.md.")
+
+    if migrated:
+        print_success(f"Lifecycle migrado em {len(migrated)} linha(s):")
+        for code, old_p, new_p, status in migrated:
+            print(f"  ~ {code} [{status}] fase `{old_p}` → `{new_p}`")
+        print()
+
+    print()
+    if not added and not orphans and not migrated:
+        print_success("State e specs estão sincronizados.\n")
+    elif not added and not orphans and migrated:
+        print_success("Specs ok; fases alinhadas ao lifecycle atual.\n")
+
+
+# Extensões tratadas como código-fonte na varredura de TODO/FIXME
+CODE_EXTS = {
+    ".py", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs",
+    ".go", ".rs", ".java", ".kt", ".cpp", ".cc", ".c", ".h", ".hpp",
+    ".cs", ".php", ".rb", ".swift", ".scala", ".vue", ".svelte",
+}
+
+# Marcadores de trabalho incompleto em comentários (não documentação que cita a regra)
+TODO_COMMENT_PATTERN = re.compile(
+    r"(?://|#|/\*|\*)\s*(TODO|FIXME)\b"
+    r"|//\s*(o resto do código|resto do|rest of the code)",
+    re.IGNORECASE,
+)
+
+
+def is_code_file(path):
+    """True for source files (inclui o script `devkit` sem extensão)."""
+    base = os.path.basename(path)
+    if base == "devkit":
+        return True
+    return os.path.splitext(base)[1].lower() in CODE_EXTS
+
 
 def check_todos_in_files(files):
-    """Scans files for forbidden comment patterns (TODO, FIXME, placeholders)."""
+    """Scans code files for incomplete-work comment markers (TODO, FIXME, placeholders)."""
     violations = []
-    pattern = re.compile(r"\b(TODO|FIXME)\b|//\s*(o resto do código|resto do|rest of the code)", re.IGNORECASE)
 
     for f in files:
         if not os.path.exists(f) or os.path.isdir(f):
             continue
+        if not is_code_file(f):
+            continue
         try:
             with open(f, "r", encoding="utf-8", errors="ignore") as fh:
                 for line_num, line in enumerate(fh, 1):
-                    if pattern.search(line):
+                    if TODO_COMMENT_PATTERN.search(line):
                         violations.append((f, line_num, line.strip()))
         except Exception:
             pass
@@ -424,12 +1116,102 @@ def get_modified_files():
                 files.append(os.path.relpath(os.path.join(root, f), "."))
     return files
 
+def is_python_project():
+    """Detect Python projects including the DevKit CLI (shebang script without .py)."""
+    if os.path.exists("requirements.txt") or os.path.exists("pyproject.toml") or os.path.exists("setup.py"):
+        return True
+    try:
+        if any(f.endswith(".py") for f in os.listdir(".")):
+            return True
+    except OSError:
+        pass
+    if os.path.isfile("devkit"):
+        try:
+            with open("devkit", "r", encoding="utf-8", errors="ignore") as fh:
+                first = fh.readline()
+            if "python" in first.lower():
+                return True
+        except OSError:
+            pass
+    return False
+
+
+
+def check_ui_heuristics(files):
+    """Heuristic UI checks on modified frontend-ish files. Returns (warnings, hard_violations)."""
+    warnings = []
+    hard = []
+    ui_files = []
+    for f in files:
+        if not os.path.exists(f) or os.path.isdir(f):
+            continue
+        ext = os.path.splitext(f)[1].lower()
+        base = os.path.basename(f).lower()
+        if ext in UI_EXTS or ext in {".tsx", ".jsx", ".vue", ".svelte"} or base.endswith(".module.css"):
+            ui_files.append(f)
+
+    if not ui_files:
+        return warnings, hard
+
+    # Active spec mentions UI?
+    has_ui_spec = False
+    try:
+        state_file = os.path.join(".ai", "state.md")
+        if os.path.exists(state_file):
+            with open(state_file, "r", encoding="utf-8") as fh:
+                rows = parse_state_table(fh.read().splitlines())
+            for r in rows:
+                if r["status"] == "done":
+                    continue
+                p = normalize_repo_path(r["path"])
+                if os.path.exists(p):
+                    with open(p, "r", encoding="utf-8", errors="ignore") as sf:
+                        body = sf.read().lower()
+                    if "há interface de usuário? sim" in body or "interface de usuário? sim" in body:
+                        has_ui_spec = True
+                    if "n/a" in body and "interface" in body:
+                        has_ui_spec = False
+    except Exception:
+        pass
+
+    joined_content = []
+    for f in ui_files:
+        try:
+            with open(f, "r", encoding="utf-8", errors="ignore") as fh:
+                content = fh.read()
+            joined_content.append(content)
+            for line_num, line in enumerate(content.splitlines(), 1):
+                if HEX_COLOR_PATTERN.search(line) and "var(" not in line and "token" not in line.lower():
+                    # allow in .css variables definitions sometimes — still warn
+                    warnings.append((f, line_num, "cor hex solta (prefira tokens do design system)", line.strip()[:120]))
+                if RAW_RGB_PATTERN.search(line) and "var(" not in line:
+                    warnings.append((f, line_num, "rgb/hsl cru (prefira tokens)", line.strip()[:120]))
+        except Exception:
+            pass
+
+    blob = "\n".join(joined_content).lower()
+    # State coverage hints when UI files changed and spec says UI
+    if has_ui_spec or ui_files:
+        for token, label in [
+            ("loading", "loading/skeleton"),
+            ("empty", "empty state"),
+            ("error", "error/retry"),
+            ("disabled", "disabled/submitting"),
+            ("aria-", "aria/a11y"),
+        ]:
+            if token not in blob and label not in blob:
+                warnings.append(("-", 0, f"diff UI sem indício de '{label}' (verifique skill ui-ux)", ""))
+
+    return warnings, hard
+
+
 def cmd_review():
     """Detects stack, runs linter, checks types, executes tests, scans for TODOs and formats output."""
     print_info("Iniciando Validação e Code Review...\n")
     
     modified_files = get_modified_files()
     todo_violations = check_todos_in_files(modified_files)
+    ui_warnings, ui_hard = check_ui_heuristics(modified_files)
 
     stack = "unknown"
     lint_cmd = None
@@ -451,18 +1233,44 @@ def cmd_review():
                 test_cmd = ["npm", "test"]
         except Exception:
             pass
-    elif os.path.exists("requirements.txt") or os.path.exists("pyproject.toml") or any(f.endswith(".py") for f in os.listdir(".")):
+    elif is_python_project():
         stack = "Python"
-        if shutil.which("ruff"):
-            lint_cmd = ["ruff", "check"]
-        elif shutil.which("flake8"):
-            lint_cmd = ["flake8"]
+        # App packages + root modules + tests. Do NOT lint the DevKit CLI script
+        # (./devkit) as application production code — ruff.toml also excludes it.
+        lint_targets = []
+        app_dirs = (
+            "analysis", "allocator", "ui", "llm", "portfolio", "config",
+            "data_fetcher", "models", "utils", "tests",
+        )
+        try:
+            for name in os.listdir("."):
+                if name.endswith(".py"):
+                    lint_targets.append(name)
+            for d in app_dirs:
+                if not os.path.isdir(d):
+                    continue
+                for root, _, files in os.walk(d):
+                    if "__pycache__" in root.split(os.sep):
+                        continue
+                    for f in files:
+                        if f.endswith(".py"):
+                            lint_targets.append(os.path.join(root, f))
+        except OSError:
+            pass
+        if shutil.which("ruff") and lint_targets:
+            lint_cmd = ["ruff", "check"] + lint_targets
+        elif shutil.which("flake8") and lint_targets:
+            lint_cmd = ["flake8"] + lint_targets
+        elif lint_targets:
+            # Fallback: validação de sintaxe sem dependências externas
+            lint_cmd = [sys.executable, "-m", "py_compile"] + lint_targets
         if shutil.which("mypy") and (os.path.exists("pyproject.toml") or os.path.exists("mypy.ini")):
             type_cmd = ["mypy", "."]
-        if shutil.which("pytest"):
-            test_cmd = ["pytest"]
-        elif os.path.exists("tests"):
-            test_cmd = ["python", "-m", "unittest", "discover"]
+        if os.path.isdir("tests"):
+            # Prefer the same interpreter running the CLI (venv when activated)
+            test_cmd = [sys.executable, "-m", "pytest", "-q"]
+        elif shutil.which("pytest"):
+            test_cmd = [sys.executable, "-m", "pytest", "-q"]
     elif os.path.exists("Cargo.toml"):
         stack = "Rust"
         lint_cmd = ["cargo", "clippy"]
@@ -538,23 +1346,294 @@ def cmd_review():
     else:
         report.append("- ⚠️ **Suíte de Testes**: Nenhuma suíte de testes detectada")
 
+    if ui_hard:
+        report.append(f"- ❌ **UI heuristics**: {len(ui_hard)} violação(ões)")
+        for item in ui_hard[:20]:
+            report.append(f"  - {item}")
+        passed = False
+    elif ui_warnings:
+        report.append(f"- ⚠️ **UI heuristics**: {len(ui_warnings)} aviso(s) (não bloqueante)")
+        for f, line, msg, snippet in ui_warnings[:15]:
+            loc = f"`{f}:{line}`" if line else "`(diff)`"
+            report.append(f"  - {loc} ➔ {msg}")
+    else:
+        report.append("- ✅ **UI heuristics**: Sem avisos (ou sem arquivos de UI no diff)")
+
     print("\n" + "=" * 50)
     print("\n".join(report))
     print("=" * 50 + "\n")
 
     sys.exit(0 if passed else 1)
 
+
+def cmd_doctor():
+    """Validate DevKit integrity in the current project."""
+    print(f"\n{BOLD}{BLUE}=== DEVKIT DOCTOR ==={RESET}\n")
+    errors = []
+    warnings = []
+
+    if not os.path.isdir(".ai"):
+        errors.append("Diretório .ai/ ausente — rode ./devkit init")
+    for rel in REQUIRED_AI_FILES:
+        if not os.path.exists(rel):
+            errors.append(f"Ausente: {rel}")
+
+    if not os.path.isfile("devkit") and not os.path.isfile("./devkit"):
+        warnings.append("Executável ./devkit não encontrado na raiz (ok se a CLI está só no PATH)")
+
+    # state vs specs
+    state_file = os.path.join(".ai", "state.md")
+    if os.path.exists(state_file):
+        with open(state_file, "r", encoding="utf-8") as f:
+            lines = f.read().splitlines()
+        rows = parse_state_table(lines)
+        if not rows:
+            warnings.append("state.md sem linhas SPEC-")
+        for r in rows:
+            p = normalize_repo_path(r["path"])
+            if not os.path.exists(p):
+                errors.append(f"{r['code']}: arquivo ausente {p}")
+            expected = STATUS_TO_PHASE.get(r["status"])
+            if r["status"] == "spec_approved" and r["phase"] == "architect":
+                warnings.append(
+                    f"{r['code']}: fase legada `architect` em spec_approved — rode ./devkit sync --migrate-lifecycle"
+                )
+            elif expected and r["phase"] != expected and r["status"] != "done":
+                warnings.append(
+                    f"{r['code']}: fase `{r['phase']}` ≠ esperada `{expected}` para status `{r['status']}`"
+                )
+            if r["status"] not in STATUS_TO_PHASE:
+                errors.append(f"{r['code']}: status desconhecido `{r['status']}`")
+
+    # python syntax of CLI if present
+    if os.path.isfile("devkit"):
+        res = subprocess.run(
+            [sys.executable, "-m", "py_compile", "devkit"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if res.returncode != 0:
+            errors.append("devkit falhou em py_compile")
+        else:
+            print_success("✓ CLI devkit: sintaxe OK")
+
+    print_info(f"Arquivos obrigatórios checados: {len(REQUIRED_AI_FILES)}")
+    if warnings:
+        print(f"\n{YELLOW}Avisos ({len(warnings)}):{RESET}")
+        for w in warnings:
+            print(f"  ! {w}")
+    if errors:
+        print(f"\n{RED}Erros ({len(errors)}):{RESET}")
+        for e in errors:
+            print(f"  ✗ {e}")
+        print()
+        sys.exit(1)
+
+    print_success("\nDoctor: APROVADO — estrutura DevKit íntegra.\n")
+    print_info("Próximo passo humano: leia docs/GUIA-DO-USUARIO.md (jornada contínua).")
+
+    append_metric("doctor", ok=True)
+
+
+def cmd_log(argv=None):
+    """Show recent state history and metrics."""
+    if argv is None:
+        argv = sys.argv[2:]
+    limit = 20
+    if "--all" in argv:
+        limit = 1000
+    for i, a in enumerate(argv):
+        if a == "--limit" and i + 1 < len(argv):
+            try:
+                limit = int(argv[i + 1])
+            except ValueError:
+                pass
+
+    print(f"\n{BOLD}{BLUE}=== DEVKIT LOG ==={RESET}\n")
+    state_file = os.path.join(".ai", "state.md")
+    if os.path.exists(state_file):
+        with open(state_file, "r", encoding="utf-8") as f:
+            content = f.read()
+        logs = []
+        in_logs = False
+        for line in content.splitlines():
+            if "Histórico de Execuções Recentes" in line:
+                in_logs = True
+                continue
+            if in_logs and line.strip().startswith("*"):
+                logs.append(line.strip())
+        print(f"{BOLD}State history{RESET} (top {min(limit, len(logs))})")
+        for line in logs[:limit]:
+            print(line)
+    else:
+        print_err("state.md não encontrado")
+
+    metrics = os.path.join(".ai", "metrics.jsonl")
+    if os.path.exists(metrics):
+        print(f"\n{BOLD}Metrics{RESET} (.ai/metrics.jsonl)")
+        with open(metrics, "r", encoding="utf-8") as f:
+            lines = f.read().splitlines()
+        for line in lines[-limit:]:
+            print(f"  {line}")
+        # simple counts
+        counts = {}
+        for line in lines:
+            try:
+                ev = json.loads(line).get("event", "?")
+                counts[ev] = counts.get(ev, 0) + 1
+            except Exception:
+                pass
+        if counts:
+            print(f"\n{BOLD}Contagem de eventos{RESET}")
+            for k, v in sorted(counts.items(), key=lambda x: -x[1]):
+                print(f"  {k}: {v}")
+    else:
+        print_info("\nSem .ai/metrics.jsonl ainda (gerado por approve/reject/propose/…).")
+    print()
+
+
+def cmd_activate(argv=None):
+    """Make a SPEC the first active (non-done) row so approve targets it."""
+    if argv is None:
+        argv = sys.argv[2:]
+    if not argv or argv[0].startswith("-"):
+        print_err("Uso: ./devkit activate SPEC-00N")
+        sys.exit(1)
+    code = argv[0].upper()
+    if not code.startswith("SPEC-"):
+        code = f"SPEC-{code}" if code.isdigit() else code
+
+    state_file = os.path.join(".ai", "state.md")
+    if not os.path.exists(state_file):
+        print_err("state.md não encontrado")
+        sys.exit(1)
+    with open(state_file, "r", encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    rows = parse_state_table(lines)
+    target = None
+    for r in rows:
+        if r["code"].upper() == code:
+            target = r
+            break
+    if not target:
+        print_err(f"Especificação {code} não encontrada no state.md")
+        sys.exit(1)
+    if target["status"] == "done":
+        print_err(f"{code} já está done — não pode ativar.")
+        sys.exit(1)
+
+    # Remove line and reinsert after header separator (first data position among non-done priority)
+    line = lines[target["idx"]]
+    del lines[target["idx"]]
+    # Find insertion point: after last header '---' of the table, before other SPEC rows — put at top of table body
+    insert_at = None
+    for idx, l in enumerate(lines):
+        if l.strip().startswith("|") and "---" in l and "Código" not in l:
+            # next lines are body; we want first position of body
+            insert_at = idx + 1
+            break
+    if insert_at is None:
+        insert_at = len(lines)
+    lines.insert(insert_at, line)
+    today = datetime.now().strftime("%Y-%m-%d")
+    lines = _insert_state_log(
+        lines,
+        f"* **{today}**: [{code}] ativada como spec prioritária (topo da fila ativa).",
+    )
+    _write_state(state_file, lines)
+    append_metric("activate", code=code)
+    print_success(f"\n✅ {code} agora é a primeira spec na fila do approve/reject.\n")
+
+
+def cmd_hotfix(argv=None):
+    """Create a hotfix spec that starts at tech_approved (skips PM polish, UX, Architect).
+
+    Requires --title. Optional --reason.
+    Still requires QA TDD → Developer → review → DoD with audit note.
+    """
+    if argv is None:
+        argv = sys.argv[2:]
+    title = reason = None
+    i = 0
+    while i < len(argv):
+        if argv[i] == "--title" and i + 1 < len(argv):
+            title = argv[i + 1]; i += 2; continue
+        if argv[i] == "--reason" and i + 1 < len(argv):
+            reason = argv[i + 1]; i += 2; continue
+        print_err(f"Uso: ./devkit hotfix --title TEXT [--reason TEXT]")
+        sys.exit(1)
+    if not title:
+        print_err("Uso: ./devkit hotfix --title TEXT [--reason TEXT]")
+        sys.exit(1)
+
+    ai_dir = os.path.join(os.getcwd(), ".ai")
+    specs_dir = os.path.join(ai_dir, "specs")
+    state_file = os.path.join(ai_dir, "state.md")
+    if not os.path.exists(state_file):
+        print_err("Projeto sem .ai/state.md — rode ./devkit init")
+        sys.exit(1)
+    os.makedirs(specs_dir, exist_ok=True)
+
+    full_title = f"[HOTFIX] {title}"
+    next_num = next_spec_number(specs_dir)
+    seq_str = f"{next_num:03d}"
+    spec_code = f"SPEC-{seq_str}"
+    filename = f"{seq_str}_{get_slug(title)}.md"
+    reason = reason or "Não informado"
+    extra = f"""
+## 0. HOTFIX — Auditoria de gates pulados
+- **Motivo**: {reason}
+- **Gates pulados**: detalhamento PM estendido, fase UX, fase Architect
+- **Obrigatório no DoD**: registrar no CHANGELOG o que foi pulado e risco residual
+- **UI**: N/A por padrão em hotfix (se houver UI, volte com reject para UX ou abra feature normal)
+
+## 3. Expectativas de UI/UX (se aplicável)
+- Há interface de usuário? Não (hotfix) — se for UI, não use hotfix
+"""
+    content = build_spec_markdown(
+        full_title,
+        "operador / time",
+        f"corrigir: {title}",
+        "restaurar serviço ou eliminar regressão crítica",
+        [f"Corrigir: {title}", f"Motivo: {reason}"],
+        extra_sections=extra,
+    )
+    # Force UI N/A and mark DoR partially
+    filepath = os.path.join(specs_dir, filename)
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    # Start at tech_approved so QA still writes/reds tests
+    register_spec_in_state(state_file, spec_code, full_title, filename, "tech_approved", "qa_tdd")
+    append_metric("hotfix", code=spec_code, title=title, reason=reason)
+
+    print_success(f"\n{BOLD}🚨 HOTFIX {spec_code} criado{RESET}")
+    print(f"Arquivo: .ai/specs/{filename}")
+    print(f"Status inicial: {YELLOW}tech_approved{RESET} / fase {BLUE}qa_tdd{RESET}")
+    print("Gates pulados: PM estendido, UX, Architect.")
+    print("Próximo: QA (TDD) → Developer → review → PM DoD com auditoria no CHANGELOG.\n")
+
+
 def print_help():
     print(f"""{BOLD}Uso:{RESET} ./devkit <comando> [argumentos]
 
 {BOLD}Comandos disponíveis:{RESET}
-  {BLUE}init [diretório]{RESET}   Inicializa a estrutura do devkit no diretório alvo (padrão: diretório atual)
-  {BLUE}propose{RESET}            Wizard interativo para criar uma especificação cooperativa
-  {BLUE}status{RESET}             Lista as especificações ativas e seus status atuais
-  {BLUE}approve{RESET}            Transiciona a especificação ativa para a próxima fase no state.md
-  {BLUE}review{RESET}             Executa linter, typecheck, testes e busca por TODOs/placeholders
-  {BLUE}help{RESET}               Mostra esta mensagem de ajuda
+  {BLUE}init [diretório]{RESET}     Inicializa o devkit no alvo (com sanitização)
+  {BLUE}propose [flags]{RESET}      Nova spec (wizard ou --title/--persona/--want/--so-that/--req)
+  {BLUE}hotfix --title T{RESET}     Spec de emergência em tech_approved (pula PM/UX/Arch)
+  {BLUE}status{RESET}               Painel de specs e fases
+  {BLUE}sync [--migrate-lifecycle]{RESET}  Specs órfãs + migração de fases legadas
+  {BLUE}activate SPEC-N{RESET}      Prioriza spec na fila do approve
+  {BLUE}approve{RESET}              Avança a spec ativa
+  {BLUE}reject{RESET}               Retrocede a spec ativa
+  {BLUE}review{RESET}               Lint, types, testes, TODO, heurísticas UI
+  {BLUE}doctor{RESET}               Valida integridade do kit no projeto
+  {BLUE}log [--limit N]{RESET}      Histórico do state + metrics.jsonl
+  {BLUE}help{RESET}                 Esta mensagem
+
+Guia didático: docs/GUIA-DO-USUARIO.md
 """)
+
 
 def main():
     if len(sys.argv) < 2:
@@ -562,24 +1641,38 @@ def main():
         sys.exit(1)
 
     command = sys.argv[1].lower()
+    rest = sys.argv[2:]
 
     if command == "init":
-        target = sys.argv[2] if len(sys.argv) > 2 else None
+        target = rest[0] if rest else None
         cmd_init(target)
     elif command == "propose":
-        cmd_propose()
+        cmd_propose(rest)
+    elif command == "hotfix":
+        cmd_hotfix(rest)
     elif command == "status":
         cmd_status()
+    elif command == "sync":
+        cmd_sync(rest)
+    elif command == "activate":
+        cmd_activate(rest)
     elif command == "approve":
         cmd_approve()
+    elif command == "reject":
+        cmd_reject()
     elif command == "review":
         cmd_review()
+    elif command == "doctor":
+        cmd_doctor()
+    elif command == "log":
+        cmd_log(rest)
     elif command in ("help", "--help", "-h"):
         print_help()
     else:
         print_err(f"Erro: Comando desconhecido '{command}'")
         print_help()
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

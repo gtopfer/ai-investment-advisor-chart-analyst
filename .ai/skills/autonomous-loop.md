@@ -1,31 +1,98 @@
-# Skill: Loop de Execução Autônoma e Autocorreção
+# Skill: Loop Autônomo e Autocorreção
 
-Este protocolo descreve a rotina de desenvolvimento e depuração iterativa de código para implementar a funcionalidade com o menor nível de ruído possível.
+> **Usado por**: Developer em `test_red` (e qualquer agente que corrija falhas de `./devkit review`).  
+> **Objetivo**: maximizar progresso com feedback real, sem loop infinito de tokens.
 
-## 1. O Ciclo do Loop
-Quando estiver na fase de desenvolvimento (`test_red`), siga o fluxo:
+## Quando usar
+
+- Após escrever ou alterar código.  
+- Quando `./devkit review` ou a suíte de testes falha.  
+- Depois de um `reject` que devolveu a spec a `test_red`.
+
+## O ciclo (ordem fixa)
 
 ```
-1. PLANEJAR   ➔ Leia .ai/specs/<spec>.md e verifique quais arquivos precisam ser tocados.
-2. ESCREVER   ➔ Implemente a mudança no código (seguindo o princípio TDD).
-3. EXECUTAR   ➔ Rode ./devkit review para validar linter, typecheck, testes e TODOs de uma só vez.
-4. AVALIAR    ➔ Se o resultado for APROVADO, avance. Se for REPROVADO, leia o erro.
-5. REFATORAR  ➔ Limpe e organize o código novo. Execute `./devkit review` novamente após refatorar.
+1. PLANEJAR    → o que deve mudar? quais arquivos? qual teste prova?
+2. ESCREVER    → menor mudança correta
+3. EXECUTAR    → ./devkit review  (e runner da stack se o review não cobrir tudo)
+4. AVALIAR     → APROVADO? avança. REPROVADO? classifique a falha
+5. CORRIGIR    → uma causa raiz por vez
+6. (opcional) REFATORAR → só com verde; re-rode o review
 ```
 
-## 2. Autocorreção (Self-Healing)
-Se o comando `./devkit review` indicar falhas (linter quebrando, testes falhando, typecheck incorreto):
-1. **Identifique a causa raiz**: Não tente adivinhar. Leia a stack trace impressa pela CLI.
-2. **Correção Direta**: Corrija o arquivo fonte associado ao erro.
-3. **Loop de Re-verificação**: Execute `./devkit review` novamente. Uma correção só é considerada válida após passar pelo crivo da CLI.
+Nunca pule **EXECUTAR**. “Compila na minha cabeça” não conta.
 
-## 3. Condições de Parada (Esgotamento)
-Para evitar que a IA entre em loops infinitos consumindo tokens desnecessariamente, pare a execução e solicite ajuda do usuário se:
-- **3 tentativas consecutivas** de correção da mesma causa raiz falharem.
-- A correção exigir novas dependências de pacotes não previstas na especificação.
-- Houver falha de infraestrutura externa (ex: credencial de API ausente, banco de dados local inacessível).
+## Classificação da falha (AVALIAR)
 
-Ao escalar para o usuário, relate claramente:
-1. O que foi tentado.
-2. Os logs de erro das tentativas falhas.
-3. A decisão ou informação específica necessária para prosseguir.
+| Tipo | Sinais | Resposta |
+|------|--------|----------|
+| **Sintaxe / lint** | parse error, ruff/eslint | Corrija o arquivo indicado |
+| **Tipo / build** | tsc, mypy, cargo | Ajuste tipos/assinaturas; não cale o typechecker |
+| **Teste (assert)** | expected ≠ actual | Corrija produção **ou** teste se o teste estiver errado vs spec |
+| **Teste (setup)** | mock, fixture, import | Conserte o harness sem enfraquecer o assert |
+| **TODO/FIXME** | review flagrou comentário | Remova e complete o comportamento |
+| **Infra** | porta, credencial, DB down | **Não** tente 3x a mesma config — escale |
+| **Escopo** | falta requisito/lib | Pare e pergunte ao humano |
+
+## Autocorreção (self-healing)
+
+1. Leia a **primeira** falha relevante do log (não a última de uma cascata se possível).  
+2. Identifique **um** arquivo e **uma** causa.  
+3. Aplique o patch mínimo.  
+4. Rode `./devkit review` de novo.  
+5. Se a mesma causa falhar de novo, registre tentativa #N e mude a hipótese — não repita o mesmo patch.
+
+### Contador de tentativas
+
+- Conta **por causa raiz** (mesmo erro essencial), não por qualquer falha diferente.  
+- **Limite: 3**. Na 4ª ocorrência da mesma causa → **STOP**.
+
+## Condições de parada (escalar ao humano)
+
+Pare o loop e peça ajuda se:
+
+1. 3 tentativas na mesma causa raiz falharam.  
+2. A correção exige dependência/pacote **não** previsto na spec/tech-spec.  
+3. Infraestrutura externa impede o teste (credencial, serviço, permissão de OS).  
+4. A tech-spec/contratos estão contraditórios ou incompletos.  
+5. O usuário mudou a spec no meio do ciclo (chame o Squad Lead).
+
+### Formato de escalação
+
+```text
+[Autonomous Loop] STOP — precisa de decisão humana
+Causa raiz: ...
+Tentativas:
+1. ... → erro
+2. ... → erro
+3. ... → erro
+Logs (trecho):
+...
+Pergunta / decisão necessária:
+...
+```
+
+## Depois do verde
+
+1. Refatore se o código ficou feio **sem** mudar comportamento.  
+2. Rode `./devkit review` outra vez.  
+3. Passe pelo checklist de `.ai/skills/code-review.md`.  
+4. Só então `./devkit approve`.
+
+## Anti-padrões
+
+| Evite | Por quê |
+|-------|---------|
+| Mudar 10 arquivos a cada falha | Difícil isolar causa |
+| Comentar testes | Esconde regressão |
+| Ampliar escopo no meio do loop | Nunca fica verde |
+| Rodar review só no final de 1h de edits | Feedback tarde demais |
+| Ignorar a 1ª falha e caçar a 12ª | Cascata |
+
+## Ligação com o kit
+
+```
+fail(review) → classificar → patch → review → ...
+     └─ 3x mesma causa → STOP → humano
+     └─ verde → code-review skill → approve
+```

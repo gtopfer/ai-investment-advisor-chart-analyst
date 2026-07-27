@@ -1,0 +1,26 @@
+name: DevKit Review
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Doctor
+        run: python3 ./devkit doctor
+
+      - name: Unit tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Review
+        run: python3 ./devkit review

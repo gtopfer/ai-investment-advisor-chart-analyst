@@ -1,0 +1,58 @@
+{"ts": "2026-07-26T21:40:03", "event": "doctor", "ok": true}
+{"ts": "2026-07-26T21:40:17", "event": "doctor", "ok": true}
+{"ts": "2026-07-26T21:40:46", "event": "doctor", "ok": true}
+{"ts": "2026-07-26T21:41:50", "event": "doctor", "ok": true}
+{"ts": "2026-07-26T21:47:33", "event": "hotfix", "code": "SPEC-006", "title": "Harness ./devkit review estável (pytest path + ruff)", "reason": "Com venv, review ainda falha no ruff ao lintar o script devkit (UP009). Sem PYTHONPATH=. os testes falham ao coletar módulos. Review só linta .py na raiz + tests/, ignorando analysis/allocator/ui/etc. Bloqueia o fluxo Developer/QA do kit novo."}
+{"ts": "2026-07-26T21:47:33", "event": "propose", "code": "SPEC-007", "title": "Unificar parse de carteira (app + portfolio)", "mode": "flags"}
+{"ts": "2026-07-26T21:47:33", "event": "propose", "code": "SPEC-008", "title": "Classe BDRs: remover opção morta ou suportar universo", "mode": "flags"}
+{"ts": "2026-07-26T21:47:33", "event": "propose", "code": "SPEC-009", "title": "Remover dependência plotly não utilizada", "mode": "flags"}
+{"ts": "2026-07-26T21:47:34", "event": "propose", "code": "SPEC-010", "title": "Avisos de qualidade de dados (histórico curto / indicadores neutros)", "mode": "flags"}
+{"ts": "2026-07-26T21:47:34", "event": "propose", "code": "SPEC-011", "title": "Extrair núcleo de domínio de app.py + logging estruturado", "mode": "flags"}
+{"ts": "2026-07-26T21:47:42", "event": "activate", "code": "SPEC-006"}
+{"ts": "2026-07-26T21:50:25", "event": "activate", "code": "SPEC-008"}
+{"ts": "2026-07-26T21:52:02", "event": "activate", "code": "SPEC-006"}
+{"ts": "2026-07-26T21:52:02", "event": "approve", "code": "SPEC-006", "from_status": "tech_approved", "to_status": "test_red", "phase": "developer"}
+{"ts": "2026-07-26T21:52:02", "event": "approve", "code": "SPEC-006", "from_status": "test_red", "to_status": "code_review", "phase": "qa_validation"}
+{"ts": "2026-07-26T21:52:02", "event": "approve", "code": "SPEC-006", "from_status": "code_review", "to_status": "tested", "phase": "pm_dod"}
+{"ts": "2026-07-26T21:52:10", "event": "activate", "code": "SPEC-006"}
+{"ts": "2026-07-26T21:52:10", "event": "approve", "code": "SPEC-006", "from_status": "tested", "to_status": "done", "phase": "done"}
+{"ts": "2026-07-26T21:54:32", "event": "activate", "code": "SPEC-007"}
+{"ts": "2026-07-26T21:54:32", "event": "approve", "code": "SPEC-007", "from_status": "draft", "to_status": "spec_approved", "phase": "ux"}
+{"ts": "2026-07-26T21:54:32", "event": "approve", "code": "SPEC-007", "from_status": "spec_approved", "to_status": "ux_approved", "phase": "architect"}
+{"ts": "2026-07-26T21:54:32", "event": "approve", "code": "SPEC-007", "from_status": "ux_approved", "to_status": "tech_approved", "phase": "qa_tdd"}
+{"ts": "2026-07-26T21:54:32", "event": "approve", "code": "SPEC-007", "from_status": "tech_approved", "to_status": "test_red", "phase": "developer"}
+{"ts": "2026-07-26T21:54:32", "event": "approve", "code": "SPEC-007", "from_status": "test_red", "to_status": "code_review", "phase": "qa_validation"}
+{"ts": "2026-07-26T21:54:32", "event": "approve", "code": "SPEC-007", "from_status": "code_review", "to_status": "tested", "phase": "pm_dod"}
+{"ts": "2026-07-26T21:54:32", "event": "approve", "code": "SPEC-007", "from_status": "tested", "to_status": "done", "phase": "done"}
+{"ts": "2026-07-26T21:54:32", "event": "activate", "code": "SPEC-008"}
+{"ts": "2026-07-26T21:54:32", "event": "approve", "code": "SPEC-008", "from_status": "draft", "to_status": "spec_approved", "phase": "ux"}
+{"ts": "2026-07-26T21:54:32", "event": "approve", "code": "SPEC-008", "from_status": "spec_approved", "to_status": "ux_approved", "phase": "architect"}
+{"ts": "2026-07-26T21:54:32", "event": "approve", "code": "SPEC-008", "from_status": "ux_approved", "to_status": "tech_approved", "phase": "qa_tdd"}
+{"ts": "2026-07-26T21:54:32", "event": "approve", "code": "SPEC-008", "from_status": "tech_approved", "to_status": "test_red", "phase": "developer"}
+{"ts": "2026-07-26T21:54:32", "event": "approve", "code": "SPEC-008", "from_status": "test_red", "to_status": "code_review", "phase": "qa_validation"}
+{"ts": "2026-07-26T21:54:32", "event": "approve", "code": "SPEC-008", "from_status": "code_review", "to_status": "tested", "phase": "pm_dod"}
+{"ts": "2026-07-26T21:54:32", "event": "approve", "code": "SPEC-008", "from_status": "tested", "to_status": "done", "phase": "done"}
+{"ts": "2026-07-26T21:54:32", "event": "activate", "code": "SPEC-009"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-009", "from_status": "draft", "to_status": "spec_approved", "phase": "ux"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-009", "from_status": "spec_approved", "to_status": "ux_approved", "phase": "architect"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-009", "from_status": "ux_approved", "to_status": "tech_approved", "phase": "qa_tdd"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-009", "from_status": "tech_approved", "to_status": "test_red", "phase": "developer"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-009", "from_status": "test_red", "to_status": "code_review", "phase": "qa_validation"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-009", "from_status": "code_review", "to_status": "tested", "phase": "pm_dod"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-009", "from_status": "tested", "to_status": "done", "phase": "done"}
+{"ts": "2026-07-26T21:54:33", "event": "activate", "code": "SPEC-010"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-010", "from_status": "draft", "to_status": "spec_approved", "phase": "ux"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-010", "from_status": "spec_approved", "to_status": "ux_approved", "phase": "architect"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-010", "from_status": "ux_approved", "to_status": "tech_approved", "phase": "qa_tdd"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-010", "from_status": "tech_approved", "to_status": "test_red", "phase": "developer"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-010", "from_status": "test_red", "to_status": "code_review", "phase": "qa_validation"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-010", "from_status": "code_review", "to_status": "tested", "phase": "pm_dod"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-010", "from_status": "tested", "to_status": "done", "phase": "done"}
+{"ts": "2026-07-26T21:54:33", "event": "activate", "code": "SPEC-011"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-011", "from_status": "draft", "to_status": "spec_approved", "phase": "ux"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-011", "from_status": "spec_approved", "to_status": "ux_approved", "phase": "architect"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-011", "from_status": "ux_approved", "to_status": "tech_approved", "phase": "qa_tdd"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-011", "from_status": "tech_approved", "to_status": "test_red", "phase": "developer"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-011", "from_status": "test_red", "to_status": "code_review", "phase": "qa_validation"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-011", "from_status": "code_review", "to_status": "tested", "phase": "pm_dod"}
+{"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-011", "from_status": "tested", "to_status": "done", "phase": "done"}

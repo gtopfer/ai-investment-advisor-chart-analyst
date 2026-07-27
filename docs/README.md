@@ -14,3 +14,12 @@
 - [SPEC-003 — Importar carteira](../.ai/specs/003_import_current_portfolio.md) (`done`)
 - [SPEC-004 — Como deve ficar](../.ai/specs/004_projected_portfolio_view.md) (`done`)
 - [SPEC-005 — Suporte a cripto](../.ai/specs/005_crypto_support.md) (`done`)
+- [SPEC-006 — HOTFIX harness review](../.ai/specs/006_harness_devkit_review_estável_pytest_path_ruff.md) (`done`)
+- [SPEC-007 — Unificar parse de carteira](../.ai/specs/007_unificar_parse_de_carteira_app_portfolio.md) (`done`)
+- [SPEC-008 — Remover BDRs do multiselect](../.ai/specs/008_classe_bdrs_remover_opção_morta_ou_suportar_universo.md) (`done`)
+- [SPEC-009 — Remover plotly](../.ai/specs/009_remover_dependência_plotly_não_utilizada.md) (`done`)
+- [SPEC-010 — Avisos de histórico curto](../.ai/specs/010_avisos_de_qualidade_de_dados_histórico_curto_indicadores_neutros.md) (`done`)
+- [SPEC-011 — Extrair domínio + logging](../.ai/specs/011_extrair_núcleo_de_domínio_de_apppy_logging_estruturado.md) (`done`)
+
+## DevKit
+- [Guia do Usuário do DevKit](GUIA-DO-USUARIO.md) — ciclo de vida, CLI e fases (inclui UX)

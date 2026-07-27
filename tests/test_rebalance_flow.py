@@ -1,6 +1,7 @@
 from allocator.portfolio_allocator import build_rebalance_actions
-from app import convert_positions_to_value_map, parse_current_portfolio
+from app import convert_positions_to_value_map
 from models.schemas import AssetAnalysis, TechnicalIndicators
+from portfolio.import_portfolio import parse_current_portfolio
 
 
 def _fake_asset(ticker: str, price: float, suggested_value: float) -> AssetAnalysis:

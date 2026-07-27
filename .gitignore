@@ -11,3 +11,6 @@ venv/
 .streamlit/
 .pytest_cache/
 .ruff_cache/
+
+# DevKit upgrade snapshots (local)
+.devkit-upgrade-backup-*/
