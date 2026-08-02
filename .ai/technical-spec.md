@@ -172,6 +172,11 @@ Não aplicável — o sistema não possui persistência. O estado vive em memór
 
 ## 9. Histórico de Decisões Arquiteturais
 
+### 2026-08-01 — SPEC-016…035: backlog de maturidade (FX, score, perf, eng, produto)
+**Contexto:** Auditoria de melhorias convertida em 20 specs e executada em lote.
+**Decisão:** (1) moeda-base BRL/USD via `utils/fx.py` + USDBRL=X; (2) tickers extras; (3) `score_breakdown` + pesos UI; (4) `FETCH_MAX_WORKERS` + modo rápido; (5) compare_strategies; (6) run_history sessão; (7) prefs arquivo `~/.ai_investment_advisor` + URL; (8) dotenv; (9) `data_fetcher/core` offline fixtures; (10) Docker; (11) i18n mínimo; (12) metas classe / custos educacionais / watchlist / charts close.
+**Consequências:** Pipeline mais honesto em multi-moeda; DX e demo offline; superfície de UI maior na sidebar.
+
 ### 2026-08-01 — SPEC-012…015: export, threshold, BDRs, persistência browser
 **Contexto:** Usuário pediu export CSV, limiar de rebalance, BDRs reais e persistência local.
 **Decisão:** (1) CSV via stdlib + `st.download_button` (`portfolio/export_csv.py`); (2) desvio `% = |delta|/patrimônio_alvo*100`, default 5%, filtra no `build_rebalance_actions`; (3) `DEFAULT_TICKERS_BR_BDRS` + classe no multiselect; (4) prefs em `st.query_params` token base64 JSON (`portfolio/persistence.py`), sem senhas/API keys.

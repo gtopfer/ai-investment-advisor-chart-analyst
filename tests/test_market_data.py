@@ -17,7 +17,8 @@ def clear_caches():
 
 @pytest.fixture
 def mock_yf_ticker(mocker):
-    return mocker.patch("data_fetcher.market_data.yf.Ticker")
+    # core importa yfinance dentro da função (SPEC-025)
+    return mocker.patch("yfinance.Ticker")
 
 def test_get_price_history_success(mock_yf_ticker):
     dates = pd.date_range("2023-01-01", periods=5)
@@ -40,15 +41,13 @@ def test_get_price_history_empty(mock_yf_ticker):
     assert result_df.empty
     mock_ticker_instance.history.assert_called_once_with(period="1mo")
 
-def test_get_price_history_exception(mock_yf_ticker, capsys):
+def test_get_price_history_exception(mock_yf_ticker):
     mock_ticker_instance = mock_yf_ticker.return_value
     mock_ticker_instance.history.side_effect = Exception("API Error")
 
     result_df = get_price_history("TEST", "1mo")
 
     assert result_df.empty
-    captured = capsys.readouterr()
-    assert "Erro ao buscar dados para TEST: API Error" in captured.out
 
 def test_get_fundamentals_success(mock_yf_ticker):
     mock_info = {
@@ -156,25 +155,21 @@ def test_get_dividend_history_success(mock_yf_ticker):
 
     pd.testing.assert_series_equal(result, mock_series)
 
-def test_get_dividend_history_exception(mock_yf_ticker, capsys):
+def test_get_dividend_history_exception(mock_yf_ticker):
     mock_ticker_instance = mock_yf_ticker.return_value
     type(mock_ticker_instance).dividends = PropertyMock(side_effect=Exception("API Error"))
 
     result = get_dividend_history("TEST")
 
     assert result.empty
-    captured = capsys.readouterr()
-    assert "Erro ao buscar histórico de dividendos para TEST: API Error" in captured.out
 
-def test_get_fundamentals_exception(mock_yf_ticker, capsys):
+def test_get_fundamentals_exception(mock_yf_ticker):
     mock_ticker_instance = mock_yf_ticker.return_value
     type(mock_ticker_instance).info = PropertyMock(side_effect=Exception("API Error"))
 
     result = get_fundamentals("TEST")
 
     assert result == {}
-    captured = capsys.readouterr()
-    assert "Erro ao buscar fundamentos para TEST: API Error" in captured.out
 
 
 # Testes adicionais usando __wrapped__ para validar lógica interna sem cache

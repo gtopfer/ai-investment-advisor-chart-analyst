@@ -7,6 +7,7 @@ Cada entrada deve descrever impacto (o que mudou para usuários/sistema), não d
 ## [Não Lançado]
 
 ### Adicionado
+- **SPEC-016…035 (onda completa)**: moeda-base/FX, tickers extras, score transparente + pesos, modo rápido/workers, comparar estratégias, histórico de runs, prefs em arquivo local, dotenv/README/CTAs, UI theme, fetcher core, mypy, logging run_id, custos educacionais, metas por classe, watchlist/alertas, gráficos de preço, riscos IA, offline/fixtures, Docker, i18n PT/EN.
 - **SPEC-012**: Exportar carteira alvo e plano de rebalance em CSV (download pós-geração).
 - **SPEC-015**: Limiar de rebalance (default 5% do patrimônio alvo); filtra ações com desvio menor.
 - **SPEC-014**: Classe **BDRs** com lista padrão B3 (yfinance) e classificação `BDRs`/`BR`.

@@ -155,20 +155,20 @@ O navegador abre automaticamente em `http://localhost:8501`.
 
 ## 📖 Guia da Interface
 
-1. **Sidebar — Filtros**
-   - **Classes de Ativos**: Ações, FIIs, ETFs, Cripto
-   - **Universo**: Nacional (B3), Internacional (US) ou Ambos
-   - **Estratégia**: *Growth* (peso técnico 0.8), *Dividendos* (peso dividendo 0.7) ou *Equilíbrio* (50/50)
-   - **Capital**: novo aporte a simular (R$)
+1. **Sidebar — Essencial**
+   - Classes (Ações, FIIs, ETFs, BDRs, Cripto), universo, estratégia, aporte e **moeda-base** (BRL/USD)
 
-2. **Sidebar — Carteira atual**
-   - Digite posições (`TICKER, VALOR` ou quantidade) **ou** importe CSV/TXT (há modelo baixável)
+2. **Sidebar — Carteira**
+   - Posições, import CSV/TXT, **tickers extras**, **watchlist**
 
 3. **Sidebar — Avançado**
-   - Período, análise IA (provedor + modelo), senha se configurada, limites de ativos
+   - Período, limiar de rebalance, modo rápido, comparar estratégias, IA, pesos do score, metas por classe
 
-4. **Gerar carteira recomendada**
-   - Resultados: métricas → carteira → alocação → rebalanceamento → **Como deve ficar** (com botão para aplicar a projeção na carteira) → detalhes técnicos
+4. **Preferências**
+   - Salvar/limpar em arquivo local + URL (sem senhas/API keys)
+
+5. **Gerar carteira**
+   - Métricas → carteira (CSV) → rebalance (CSV + custo est.) → projeção → comparação → alertas → detalhes (breakdown, gráfico) → histórico de runs
 
 ---
 

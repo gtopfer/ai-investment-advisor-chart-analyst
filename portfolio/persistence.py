@@ -1,10 +1,16 @@
-"""SPEC-013: serialização de preferências/carteira para persistência no browser (query params)."""
+"""SPEC-013/022: prefs em arquivo local + codec URL."""
 
 from __future__ import annotations
 
 import base64
 import json
+import logging
+from pathlib import Path
 from typing import Any
+
+from config.config import PREFS_FILE
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_PORTFOLIO_TEXT = "PETR4.SA, 3000\nHGLG11.SA, 2000\nAAPL, 1500"
 
@@ -16,15 +22,19 @@ DEFAULT_PREFS: dict[str, Any] = {
     "capital": 10000.0,
     "portfolio_mode": "Valor atual (R$)",
     "rebalance_threshold_pct": 5.0,
+    "base_currency": "BRL",
+    "extra_tickers": "",
+    "watchlist": [],
+    "lang": "pt",
+    "weight_technical": None,
+    "weight_dividend": None,
 }
 
 QUERY_KEY = "prefs"
 
 
 def encode_prefs(prefs: dict[str, Any]) -> str:
-    """Serializa preferências em token seguro para URL (base64url JSON)."""
     payload = {**DEFAULT_PREFS, **prefs}
-    # Nunca incluir senhas/chaves
     payload.pop("ai_password", None)
     payload.pop("api_key", None)
     raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
@@ -32,7 +42,6 @@ def encode_prefs(prefs: dict[str, Any]) -> str:
 
 
 def decode_prefs(token: str | None) -> dict[str, Any] | None:
-    """Decodifica token; None se inválido/vazio."""
     if not token or not str(token).strip():
         return None
     try:
@@ -42,13 +51,18 @@ def decode_prefs(token: str | None) -> dict[str, Any] | None:
         return None
     if not isinstance(data, dict):
         return None
+    return _merge_prefs(data)
+
+
+def _merge_prefs(data: dict[str, Any]) -> dict[str, Any]:
     merged = {**DEFAULT_PREFS}
     for key in DEFAULT_PREFS:
         if key in data:
             merged[key] = data[key]
-    # normalizações leves
     if not isinstance(merged.get("asset_classes"), list):
         merged["asset_classes"] = list(DEFAULT_PREFS["asset_classes"])
+    if not isinstance(merged.get("watchlist"), list):
+        merged["watchlist"] = []
     try:
         merged["capital"] = float(merged["capital"])
     except (TypeError, ValueError):
@@ -58,3 +72,40 @@ def decode_prefs(token: str | None) -> dict[str, Any] | None:
     except (TypeError, ValueError):
         merged["rebalance_threshold_pct"] = DEFAULT_PREFS["rebalance_threshold_pct"]
     return merged
+
+
+def load_prefs_file(path: Path | None = None) -> dict[str, Any] | None:
+    """SPEC-022: carrega JSON local single-user."""
+    p = path or PREFS_FILE
+    try:
+        if not p.is_file():
+            return None
+        data = json.loads(p.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return _merge_prefs(data)
+    except (OSError, json.JSONDecodeError):
+        logger.debug("Falha ao ler prefs file", exc_info=True)
+    return None
+
+
+def save_prefs_file(prefs: dict[str, Any], path: Path | None = None) -> bool:
+    p = path or PREFS_FILE
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        payload = {**DEFAULT_PREFS, **prefs}
+        payload.pop("ai_password", None)
+        payload.pop("api_key", None)
+        p.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        return True
+    except OSError:
+        logger.exception("Falha ao gravar prefs file")
+        return False
+
+
+def clear_prefs_file(path: Path | None = None) -> None:
+    p = path or PREFS_FILE
+    try:
+        if p.is_file():
+            p.unlink()
+    except OSError:
+        logger.debug("Falha ao apagar prefs file", exc_info=True)

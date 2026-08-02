@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8501:8501"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - OFFLINE_MODE=${OFFLINE_MODE:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}

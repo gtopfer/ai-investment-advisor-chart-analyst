@@ -4,6 +4,7 @@
 
 ## Por onde começar
 - [`CHANGELOG.md`](CHANGELOG.md) — histórico de mudanças notáveis, mais recente primeiro
+- [`BACKLOG.md`](BACKLOG.md) — melhorias futuras **SPEC-016…035** (ondas P0–P3, dependências)
 - As duas specs do projeto vivem em [`.ai/`](../.ai/), na raiz: [`template.specs`](../.ai/template.specs) (requisito do app, do PM) e [`technical-spec.md`](../.ai/technical-spec.md) (especificação técnica de construção, do Architect — inclui o histórico de decisões arquiteturais)
 - Cenários BDD ficam em [`.ai/features.feature`](../.ai/features.feature)
 - Specs de API, guias de deploy e documentação de schema de banco de dados vão direto nesta pasta, conforme forem escritos

@@ -51,10 +51,27 @@ def classify_ticker(ticker: str) -> tuple[str, str]:
     return "Desconhecido", "US/CRYPTO"
 
 
-def build_candidate_tickers(asset_classes, universe) -> list[str]:
+def parse_extra_tickers(raw: str | None) -> list[str]:
+    """SPEC-017: parse textarea de tickers extras."""
+    if not raw or not str(raw).strip():
+        return []
+    out: list[str] = []
+    for part in re.split(r"[\n,;]+", str(raw)):
+        t = normalize_ticker(part.strip())
+        if t and re.match(r"^[A-Z0-9.\-]+$", t):
+            out.append(t)
+    return list(dict.fromkeys(out))
+
+
+def build_candidate_tickers(
+    asset_classes,
+    universe,
+    extra_tickers: list[str] | None = None,
+) -> list[str]:
     """
     Monta lista de tickers respeitando filtro de classes e geografia.
     BDRs (SPEC-014): entram sempre que a classe estiver marcada, independente do universo.
+    SPEC-017: extra_tickers mesclados com dedupe.
     """
     tickers: list[str] = []
 
@@ -75,5 +92,8 @@ def build_candidate_tickers(asset_classes, universe) -> list[str]:
 
     if "Cripto" in asset_classes:
         tickers.extend(DEFAULT_TICKERS_CRYPTO)
+
+    if extra_tickers:
+        tickers.extend(extra_tickers)
 
     return list(dict.fromkeys(tickers))
