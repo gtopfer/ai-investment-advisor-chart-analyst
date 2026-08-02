@@ -105,11 +105,21 @@ def build_rebalance_actions(
     current_values: dict[str, float],
     target_assets: list[AssetAnalysis],
     min_trade_value: float = 1.0,
+    threshold_pct: float = 0.0,
+    target_total: float | None = None,
 ) -> list[dict[str, Any]]:
     """
     Compara carteira atual vs. carteira alvo e retorna ações de rebalanceamento.
+
+    threshold_pct (SPEC-015): desvio mínimo em % do patrimônio alvo para manter a ação.
+    Fórmula: |delta| / target_total * 100. Limiar 0 mantém o comportamento anterior
+    (só min_trade_value em R$).
     """
     target_values = {asset.ticker: float(asset.suggested_value) for asset in target_assets}
+    if target_total is None:
+        target_total = sum(target_values.values())
+    target_total = float(target_total or 0.0)
+
     all_tickers = set(current_values.keys()) | set(target_values.keys())
     actions: list[dict[str, Any]] = []
 
@@ -130,6 +140,10 @@ def build_rebalance_actions(
         else:
             action = "Reduzir/Vender"
 
+        deviation_pct = (
+            abs(delta_value) / target_total * 100.0 if target_total > 0 else 100.0
+        )
+
         actions.append(
             {
                 "ticker": ticker,
@@ -137,10 +151,19 @@ def build_rebalance_actions(
                 "current_value": current_value,
                 "target_value": target_value,
                 "delta_value": delta_value,
+                "deviation_pct": deviation_pct,
             }
         )
 
-    return sorted(actions, key=lambda item: abs(item["delta_value"]), reverse=True)
+    actions = sorted(actions, key=lambda item: abs(item["delta_value"]), reverse=True)
+
+    if threshold_pct and threshold_pct > 0:
+        actions = [
+            item for item in actions if float(item.get("deviation_pct", 0.0)) >= threshold_pct
+        ]
+
+    return actions
+
 
 
 def build_projected_portfolio(

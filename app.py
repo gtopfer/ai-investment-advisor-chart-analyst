@@ -28,6 +28,7 @@ from data_fetcher.market_data import (
 from models.schemas import AssetAnalysis
 from portfolio.candidates import build_candidate_tickers, classify_ticker
 from portfolio.import_portfolio import format_positions_as_text, parse_current_portfolio
+from portfolio.persistence import QUERY_KEY, encode_prefs
 from ui.layout import (
     display_portfolio,
     display_projected_portfolio,
@@ -206,6 +207,7 @@ def process_portfolio(
     progress_callback=None,
     llm_provider: str | None = None,
     llm_model: str | None = None,
+    rebalance_threshold_pct: float = 0.0,
 ):
     analyzed_assets, ai_calls, failed_tickers = analyze_assets(
         tickers,
@@ -223,7 +225,12 @@ def process_portfolio(
     current_total_value = sum(current_value_map.values())
     target_total_value = current_total_value + capital
     final_portfolio = allocate_capital(scored_assets, target_total_value, max_assets=max_portfolio_assets)
-    rebalance_actions = build_rebalance_actions(current_value_map, final_portfolio)
+    rebalance_actions = build_rebalance_actions(
+        current_value_map,
+        final_portfolio,
+        threshold_pct=rebalance_threshold_pct,
+        target_total=target_total_value,
+    )
     projected_rows = build_projected_portfolio(current_value_map, final_portfolio)
     short_history_tickers = _tickers_with_insufficient_history(scored_assets)
 
@@ -254,6 +261,7 @@ def handle_generate_portfolio(
     ai_password="",
     llm_provider=None,
     llm_model=None,
+    rebalance_threshold_pct=0.0,
 ):
     with st.spinner("Analisando mercado e processando dados..."):
         tickers = build_candidate_tickers(asset_classes, universe)
@@ -294,6 +302,7 @@ def handle_generate_portfolio(
             progress_callback=update_progress,
             llm_provider=llm_provider,
             llm_model=llm_model,
+            rebalance_threshold_pct=rebalance_threshold_pct,
         )
 
         st.session_state.last_run = {
@@ -308,7 +317,23 @@ def handle_generate_portfolio(
             "failed_tickers": failed_tickers,
             "short_history_tickers": short_history_tickers,
             "run_ai": run_ai,
+            "rebalance_threshold_pct": rebalance_threshold_pct,
         }
+        # SPEC-013: auto-persist prefs after successful run
+        try:
+            st.query_params[QUERY_KEY] = encode_prefs(
+                {
+                    "portfolio_text": current_portfolio_text,
+                    "asset_classes": list(asset_classes or []),
+                    "universe": universe,
+                    "strategy": strategy,
+                    "capital": float(capital),
+                    "portfolio_mode": portfolio_mode,
+                    "rebalance_threshold_pct": float(rebalance_threshold_pct),
+                }
+            )
+        except Exception:
+            logger.debug("Falha ao persistir preferências na URL", exc_info=True)
         st.success("Análise concluída.")
 
 
@@ -354,6 +379,7 @@ def _render_last_run():
         run["current_total_value"],
         run["capital"],
         run["target_total_value"],
+        threshold_pct=float(run.get("rebalance_threshold_pct") or 0.0),
     )
     display_projected_portfolio(
         run["projected_rows"],
@@ -368,7 +394,10 @@ def _render_last_run():
             st.markdown(f"**{asset.ticker}** — score {asset.total_score:.2f}")
             if asset.ai_analysis:
                 st.caption(f"IA: {asset.ai_analysis.short_summary_pt}")
-            st.write(f"RSI: {asset.technical.rsi:.1f} · Tendência: {asset.technical.ema_trend}")
+            if asset.technical:
+                st.write(
+                    f"RSI: {asset.technical.rsi:.1f} · Tendência: {asset.technical.ema_trend}"
+                )
             st.divider()
 
 
@@ -389,6 +418,7 @@ def main():
         ai_password,
         llm_provider,
         llm_model,
+        rebalance_threshold_pct,
     ) = render_sidebar()
 
     if st.sidebar.button("Gerar carteira recomendada", type="primary"):
@@ -406,6 +436,7 @@ def main():
             ai_password,
             llm_provider,
             llm_model,
+            rebalance_threshold_pct,
         )
 
     _render_last_run()

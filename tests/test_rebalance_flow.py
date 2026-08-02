@@ -89,3 +89,42 @@ def test_build_rebalance_actions_flags_buy_and_sell():
     assert action_map["PETR4.SA"] == "Reduzir/Vender"
     assert action_map["AAPL"] == "Abrir posição (Comprar)"
     assert action_map["VALE3.SA"] == "Zerar posição (Vender)"
+
+
+def test_threshold_zero_keeps_all_material_actions():
+    current_values = {"PETR4.SA": 4000.0, "VALE3.SA": 2000.0}
+    target_assets = [
+        _fake_asset("PETR4.SA", 30.0, 2500.0),
+        _fake_asset("AAPL", 200.0, 3500.0),
+    ]
+    # target_total = 6000
+    actions = build_rebalance_actions(
+        current_values, target_assets, threshold_pct=0.0, target_total=6000.0
+    )
+    assert len(actions) == 3
+
+
+def test_threshold_filters_small_deviations():
+    # Small delta relative to portfolio: 50 / 10000 = 0.5%
+    current_values = {"PETR4.SA": 5050.0}
+    target_assets = [_fake_asset("PETR4.SA", 30.0, 5000.0)]
+    actions_all = build_rebalance_actions(
+        current_values, target_assets, threshold_pct=0.0, target_total=10000.0
+    )
+    actions_5 = build_rebalance_actions(
+        current_values, target_assets, threshold_pct=5.0, target_total=10000.0
+    )
+    assert len(actions_all) == 1
+    assert actions_all[0]["deviation_pct"] == 0.5
+    assert actions_5 == []
+
+
+def test_threshold_keeps_large_deviations():
+    current_values = {"PETR4.SA": 1000.0}
+    target_assets = [_fake_asset("PETR4.SA", 30.0, 5000.0)]
+    # delta 4000 / 10000 = 40%
+    actions = build_rebalance_actions(
+        current_values, target_assets, threshold_pct=5.0, target_total=10000.0
+    )
+    assert len(actions) == 1
+    assert actions[0]["deviation_pct"] == 40.0

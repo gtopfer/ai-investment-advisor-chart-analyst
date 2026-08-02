@@ -20,6 +20,10 @@
 - [SPEC-009 — Remover plotly](../.ai/specs/009_remover_dependência_plotly_não_utilizada.md) (`done`)
 - [SPEC-010 — Avisos de histórico curto](../.ai/specs/010_avisos_de_qualidade_de_dados_histórico_curto_indicadores_neutros.md) (`done`)
 - [SPEC-011 — Extrair domínio + logging](../.ai/specs/011_extrair_núcleo_de_domínio_de_apppy_logging_estruturado.md) (`done`)
+- [SPEC-012 — Export CSV carteira/rebalance](../.ai/specs/012_exportar_carteira_e_plano_de_rebalanceamento.md) (`done`)
+- [SPEC-013 — Persistir preferências no browser](../.ai/specs/013_persistir_carteira_e_preferências_entre_sessões.md) (`done`)
+- [SPEC-014 — Suporte a BDRs](../.ai/specs/014_suporte_completo_a_bdrs_como_classe_de_ativos.md) (`done`)
+- [SPEC-015 — Threshold de rebalance](../.ai/specs/015_threshold_de_rebalanceamento_por_desvio_percentual.md) (`done`)
 
 ## DevKit
 - [Guia do Usuário do DevKit](GUIA-DO-USUARIO.md) — ciclo de vida, CLI e fases (inclui UX)

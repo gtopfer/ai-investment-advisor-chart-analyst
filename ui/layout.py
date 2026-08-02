@@ -1,15 +1,26 @@
+import logging
 from collections.abc import Callable
 
 import pandas as pd
 import streamlit as st
 
-from config.config import ASSET_CLASS_OPTIONS
+logger = logging.getLogger(__name__)
+
+from config.config import ASSET_CLASS_OPTIONS, DEFAULT_REBALANCE_THRESHOLD_PCT
 from llm.registry import (
     default_model_for,
     get_enabled_providers,
     resolve_default_provider_id,
 )
+from portfolio.export_csv import portfolio_target_to_csv, rebalance_actions_to_csv
 from portfolio.import_portfolio import PORTFOLIO_CSV_TEMPLATE, import_portfolio_file
+from portfolio.persistence import (
+    DEFAULT_PORTFOLIO_TEXT,
+    DEFAULT_PREFS,
+    QUERY_KEY,
+    decode_prefs,
+    encode_prefs,
+)
 
 _DARK_CSS = """
 <style>
@@ -96,43 +107,121 @@ def render_empty_state():
     )
 
 
-def render_sidebar():
+def _hydrate_prefs_once():
+    """SPEC-013: carrega preferências da URL (query params) uma vez por sessão."""
+    if st.session_state.get("_prefs_hydrated"):
+        return
+    st.session_state._prefs_hydrated = True
+    token = None
+    try:
+        token = st.query_params.get(QUERY_KEY)
+    except Exception:
+        logger.debug("query_params indisponível no hydrate", exc_info=True)
+        token = None
+    prefs = decode_prefs(token) if token else None
+    if not prefs:
+        prefs = dict(DEFAULT_PREFS)
     if "portfolio_text" not in st.session_state:
-        st.session_state.portfolio_text = "PETR4.SA, 3000\nHGLG11.SA, 2000\nAAPL, 1500"
+        st.session_state.portfolio_text = prefs.get("portfolio_text", DEFAULT_PORTFOLIO_TEXT)
+    st.session_state.pref_asset_classes = [
+        c for c in prefs.get("asset_classes", ["Ações", "FIIs"]) if c in ASSET_CLASS_OPTIONS
+    ] or ["Ações", "FIIs"]
+    st.session_state.pref_universe = prefs.get("universe", "Nacional")
+    st.session_state.pref_strategy = prefs.get("strategy", "Equilíbrio")
+    st.session_state.pref_capital = float(prefs.get("capital", 10000.0))
+    st.session_state.pref_portfolio_mode = prefs.get(
+        "portfolio_mode", "Valor atual (R$)"
+    )
+    st.session_state.pref_rebalance_threshold_pct = float(
+        prefs.get("rebalance_threshold_pct", DEFAULT_REBALANCE_THRESHOLD_PCT)
+    )
+
+
+def _save_prefs_to_query(
+    asset_classes,
+    universe,
+    strategy,
+    capital,
+    portfolio_mode,
+    portfolio_text,
+    rebalance_threshold_pct,
+):
+    prefs = {
+        "portfolio_text": portfolio_text or "",
+        "asset_classes": list(asset_classes or []),
+        "universe": universe,
+        "strategy": strategy,
+        "capital": float(capital),
+        "portfolio_mode": portfolio_mode,
+        "rebalance_threshold_pct": float(rebalance_threshold_pct),
+    }
+    try:
+        st.query_params[QUERY_KEY] = encode_prefs(prefs)
+    except Exception:
+        logger.debug("Falha ao gravar preferências na URL", exc_info=True)
+
+
+def _clear_saved_prefs():
+    try:
+        if QUERY_KEY in st.query_params:
+            del st.query_params[QUERY_KEY]
+    except Exception:
+        logger.debug("Falha ao limpar query_params", exc_info=True)
+    st.session_state.portfolio_text = DEFAULT_PORTFOLIO_TEXT
+    st.session_state.pref_asset_classes = list(DEFAULT_PREFS["asset_classes"])
+    st.session_state.pref_universe = DEFAULT_PREFS["universe"]
+    st.session_state.pref_strategy = DEFAULT_PREFS["strategy"]
+    st.session_state.pref_capital = DEFAULT_PREFS["capital"]
+    st.session_state.pref_portfolio_mode = DEFAULT_PREFS["portfolio_mode"]
+    st.session_state.pref_rebalance_threshold_pct = DEFAULT_PREFS["rebalance_threshold_pct"]
+    st.session_state._prefs_hydrated = True
+
+
+def render_sidebar():
+    _hydrate_prefs_once()
+    if "portfolio_text" not in st.session_state:
+        st.session_state.portfolio_text = DEFAULT_PORTFOLIO_TEXT
 
     with st.sidebar:
         st.markdown("### Configuração")
 
         with st.expander("Essencial", expanded=True):
+            default_classes = st.session_state.get("pref_asset_classes", ["Ações", "FIIs"])
             asset_classes = st.multiselect(
                 "Classes de ativos",
                 ASSET_CLASS_OPTIONS,
-                default=["Ações", "FIIs"],
-                help="Cripto: use BTC-USD ou atalhos BTC, ETH, SOL (Yahoo Finance).",
+                default=default_classes,
+                help="BDRs: recibos B3. Cripto: BTC-USD ou atalhos BTC, ETH, SOL.",
             )
+            universe_opts = ["Nacional", "Internacional", "Ambos"]
+            uni = st.session_state.get("pref_universe", "Nacional")
             universe = st.radio(
                 "Universo",
-                ["Nacional", "Internacional", "Ambos"],
-                index=0,
+                universe_opts,
+                index=universe_opts.index(uni) if uni in universe_opts else 0,
                 horizontal=True,
             )
+            strategy_opts = ["Growth", "Equilíbrio", "Dividendos"]
+            strat = st.session_state.get("pref_strategy", "Equilíbrio")
             strategy = st.select_slider(
                 "Estratégia",
-                options=["Growth", "Equilíbrio", "Dividendos"],
-                value="Equilíbrio",
+                options=strategy_opts,
+                value=strat if strat in strategy_opts else "Equilíbrio",
             )
             capital = st.number_input(
                 "Novo aporte (R$)",
                 min_value=100.0,
-                value=10000.0,
+                value=float(st.session_state.get("pref_capital", 10000.0)),
                 step=100.0,
             )
 
         with st.expander("Carteira atual", expanded=False):
+            mode_opts = ["Valor atual (R$)", "Quantidade de cotas/unidades"]
+            pm = st.session_state.get("pref_portfolio_mode", mode_opts[0])
             portfolio_mode = st.selectbox(
                 "Formato",
-                ["Valor atual (R$)", "Quantidade de cotas/unidades"],
-                index=0,
+                mode_opts,
+                index=mode_opts.index(pm) if pm in mode_opts else 0,
             )
             uploaded = st.file_uploader(
                 "Importar CSV ou TXT",
@@ -185,6 +274,18 @@ def render_sidebar():
 
         with st.expander("Avançado", expanded=False):
             period = st.selectbox("Período de análise", ["6mo", "1y", "2y", "5y"], index=1)
+            rebalance_threshold_pct = st.slider(
+                "Ignorar desvios menores que (%)",
+                min_value=0.0,
+                max_value=20.0,
+                value=float(
+                    st.session_state.get(
+                        "pref_rebalance_threshold_pct", DEFAULT_REBALANCE_THRESHOLD_PCT
+                    )
+                ),
+                step=0.5,
+                help="Só mostra no plano de rebalance ações com |delta|/patrimônio_alvo ≥ este %.",
+            )
             run_ai = st.checkbox(
                 "Rodar análise IA",
                 value=False,
@@ -237,6 +338,24 @@ def render_sidebar():
                 step=1,
             )
 
+        with st.expander("Preferências salvas", expanded=False):
+            st.caption("Preferências e carteira neste navegador (URL). Sem senhas nem API keys.")
+            if st.button("Salvar neste navegador"):
+                _save_prefs_to_query(
+                    asset_classes,
+                    universe,
+                    strategy,
+                    capital,
+                    portfolio_mode,
+                    current_portfolio_text,
+                    rebalance_threshold_pct,
+                )
+                st.success("Preferências salvas na URL deste navegador.")
+            if st.button("Limpar dados salvos"):
+                _clear_saved_prefs()
+                st.success("Dados salvos limpos. Recarregue se os widgets não atualizarem.")
+                st.rerun()
+
     return (
         asset_classes,
         universe,
@@ -251,6 +370,7 @@ def render_sidebar():
         ai_password,
         llm_provider,
         llm_model,
+        rebalance_threshold_pct,
     )
 
 
@@ -310,6 +430,13 @@ def display_portfolio(portfolio):
     st.dataframe(pd.DataFrame(data), use_container_width=True, hide_index=True)
 
     if len(data) > 0:
+        st.download_button(
+            "Baixar carteira alvo (CSV)",
+            data=portfolio_target_to_csv(portfolio),
+            file_name="carteira_alvo.csv",
+            mime="text/csv",
+            key="dl_portfolio_target",
+        )
         st.subheader("Distribuição de alocação")
         chart_data = pd.DataFrame(
             {
@@ -320,15 +447,28 @@ def display_portfolio(portfolio):
         st.bar_chart(chart_data.set_index("Ticker"))
 
 
-def display_rebalance_plan(actions, current_total: float, new_investment: float, target_total: float):
+def display_rebalance_plan(
+    actions,
+    current_total: float,
+    new_investment: float,
+    target_total: float,
+    threshold_pct: float = 0.0,
+):
     st.subheader("Plano de rebalanceamento")
     st.caption(
         f"Atual: R$ {current_total:,.2f} · Aporte: R$ {new_investment:,.2f} · "
         f"Alvo: R$ {target_total:,.2f}"
+        + (f" · Limiar: {threshold_pct:g}%" if threshold_pct and threshold_pct > 0 else "")
     )
 
     if not actions:
-        st.info("Sem ajustes relevantes para rebalanceamento no momento.")
+        if threshold_pct and threshold_pct > 0:
+            st.info(
+                f"Nenhuma ação acima do limiar de {threshold_pct:g}% "
+                "(desvio em relação ao patrimônio alvo)."
+            )
+        else:
+            st.info("Sem ajustes relevantes para rebalanceamento no momento.")
         return
 
     rows = []
@@ -340,9 +480,17 @@ def display_rebalance_plan(actions, current_total: float, new_investment: float,
                 "Valor atual (R$)": f"R$ {item['current_value']:,.2f}",
                 "Valor alvo (R$)": f"R$ {item['target_value']:,.2f}",
                 "Ajuste (R$)": f"R$ {item['delta_value']:,.2f}",
+                "Desvio %": f"{float(item.get('deviation_pct', 0.0)):.2f}%",
             }
         )
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    st.download_button(
+        "Baixar plano de rebalance (CSV)",
+        data=rebalance_actions_to_csv(actions),
+        file_name="plano_rebalance.csv",
+        mime="text/csv",
+        key="dl_rebalance_plan",
+    )
 
 
 def display_projected_portfolio(

@@ -52,11 +52,19 @@ def test_split_results_separates_failed_tickers_preserving_order():
     assert failed == ["B"]
 
 
-def test_asset_class_options_exclude_bdrs():
-    assert "BDRs" not in ASSET_CLASS_OPTIONS
-    assert set(ASSET_CLASS_OPTIONS) == {"Ações", "FIIs", "ETFs", "Cripto"}
+def test_asset_class_options_include_bdrs():
+    assert "BDRs" in ASSET_CLASS_OPTIONS
+    assert set(ASSET_CLASS_OPTIONS) == {"Ações", "FIIs", "ETFs", "BDRs", "Cripto"}
 
 
-def test_build_candidate_tickers_bdrs_alone_is_empty():
-    # Classe removida da UI; se ainda for passada, não há ramo de candidatos
-    assert build_candidate_tickers(["BDRs"], "Ambos") == []
+def test_build_candidate_tickers_bdrs_has_defaults():
+    from config.config import DEFAULT_TICKERS_BR_BDRS
+
+    tickers = build_candidate_tickers(["BDRs"], "Internacional")
+    assert set(DEFAULT_TICKERS_BR_BDRS).issubset(set(tickers))
+    assert len(tickers) >= 5
+
+
+def test_classify_ticker_bdrs():
+    assert classify_ticker("AAPL34.SA") == ("BDRs", "BR")
+    assert classify_ticker("MSFT34.SA") == ("BDRs", "BR")

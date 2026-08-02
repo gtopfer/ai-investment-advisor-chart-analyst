@@ -20,6 +20,10 @@ Este arquivo é lido e atualizado automaticamente pela IA para rastrear o status
 
 | Código | Título da Spec | Caminho do Arquivo | Status Atual | Fase Ativa | Última Atualização |
 |--------|----------------|-------------------|--------------|------------|---------------------|
+| SPEC-013 | Persistir carteira e preferências entre sessões | `.ai/specs/013_persistir_carteira_e_preferências_entre_sessões.md` | `done` | `done` | 2026-08-01 |
+| SPEC-014 | Suporte completo a BDRs como classe de ativos | `.ai/specs/014_suporte_completo_a_bdrs_como_classe_de_ativos.md` | `done` | `done` | 2026-08-01 |
+| SPEC-015 | Threshold de rebalanceamento por desvio percentual | `.ai/specs/015_threshold_de_rebalanceamento_por_desvio_percentual.md` | `done` | `done` | 2026-08-01 |
+| SPEC-012 | Exportar carteira e plano de rebalanceamento | `.ai/specs/012_exportar_carteira_e_plano_de_rebalanceamento.md` | `done` | `done` | 2026-08-01 |
 | SPEC-011 | Extrair núcleo de domínio de app.py + logging estruturado | `.ai/specs/011_extrair_núcleo_de_domínio_de_apppy_logging_estruturado.md` | `done` | `done` | 2026-07-26 |
 | SPEC-010 | Avisos de qualidade de dados (histórico curto / indicadores neutros) | `.ai/specs/010_avisos_de_qualidade_de_dados_histórico_curto_indicadores_neutros.md` | `done` | `done` | 2026-07-26 |
 | SPEC-009 | Remover dependência plotly não utilizada | `.ai/specs/009_remover_dependência_plotly_não_utilizada.md` | `done` | `done` | 2026-07-26 |
@@ -37,6 +41,44 @@ Este arquivo é lido e atualizado automaticamente pela IA para rastrear o status
 
 ## Histórico de Execuções Recentes
 
+* **2026-08-01**: [SPEC-013] Aprovado e transicionado: `tested` ➔ `done` (Fase Ativa: `done`).
+* **2026-08-01**: [SPEC-013] Aprovado e transicionado: `code_review` ➔ `tested` (Fase Ativa: `pm_dod`).
+* **2026-08-01**: [SPEC-013] Aprovado e transicionado: `test_red` ➔ `code_review` (Fase Ativa: `qa_validation`).
+* **2026-08-01**: [SPEC-013] Aprovado e transicionado: `tech_approved` ➔ `test_red` (Fase Ativa: `developer`).
+* **2026-08-01**: [SPEC-013] Aprovado e transicionado: `ux_approved` ➔ `tech_approved` (Fase Ativa: `qa_tdd`).
+* **2026-08-01**: [SPEC-013] Aprovado e transicionado: `spec_approved` ➔ `ux_approved` (Fase Ativa: `architect`).
+* **2026-08-01**: [SPEC-013] Aprovado e transicionado: `draft` ➔ `spec_approved` (Fase Ativa: `ux`).
+* **2026-08-01**: [SPEC-013] ativada como spec prioritária (topo da fila ativa).
+* **2026-08-01**: [SPEC-014] Aprovado e transicionado: `tested` ➔ `done` (Fase Ativa: `done`).
+* **2026-08-01**: [SPEC-014] Aprovado e transicionado: `code_review` ➔ `tested` (Fase Ativa: `pm_dod`).
+* **2026-08-01**: [SPEC-014] Aprovado e transicionado: `test_red` ➔ `code_review` (Fase Ativa: `qa_validation`).
+* **2026-08-01**: [SPEC-014] Aprovado e transicionado: `tech_approved` ➔ `test_red` (Fase Ativa: `developer`).
+* **2026-08-01**: [SPEC-014] Aprovado e transicionado: `ux_approved` ➔ `tech_approved` (Fase Ativa: `qa_tdd`).
+* **2026-08-01**: [SPEC-014] Aprovado e transicionado: `spec_approved` ➔ `ux_approved` (Fase Ativa: `architect`).
+* **2026-08-01**: [SPEC-014] Aprovado e transicionado: `draft` ➔ `spec_approved` (Fase Ativa: `ux`).
+* **2026-08-01**: [SPEC-014] ativada como spec prioritária (topo da fila ativa).
+* **2026-08-01**: [SPEC-015] Aprovado e transicionado: `tested` ➔ `done` (Fase Ativa: `done`).
+* **2026-08-01**: [SPEC-015] Aprovado e transicionado: `code_review` ➔ `tested` (Fase Ativa: `pm_dod`).
+* **2026-08-01**: [SPEC-015] Aprovado e transicionado: `test_red` ➔ `code_review` (Fase Ativa: `qa_validation`).
+* **2026-08-01**: [SPEC-015] Aprovado e transicionado: `tech_approved` ➔ `test_red` (Fase Ativa: `developer`).
+* **2026-08-01**: [SPEC-015] Aprovado e transicionado: `ux_approved` ➔ `tech_approved` (Fase Ativa: `qa_tdd`).
+* **2026-08-01**: [SPEC-015] Aprovado e transicionado: `spec_approved` ➔ `ux_approved` (Fase Ativa: `architect`).
+* **2026-08-01**: [SPEC-015] Aprovado e transicionado: `draft` ➔ `spec_approved` (Fase Ativa: `ux`).
+* **2026-08-01**: [SPEC-015] ativada como spec prioritária (topo da fila ativa).
+* **2026-08-01**: [SPEC-012] Aprovado e transicionado: `tested` ➔ `done` (Fase Ativa: `done`).
+* **2026-08-01**: [SPEC-012] Aprovado e transicionado: `code_review` ➔ `tested` (Fase Ativa: `pm_dod`).
+* **2026-08-01**: [SPEC-012] Aprovado e transicionado: `test_red` ➔ `code_review` (Fase Ativa: `qa_validation`).
+* **2026-08-01**: [SPEC-012] Aprovado e transicionado: `tech_approved` ➔ `test_red` (Fase Ativa: `developer`).
+* **2026-08-01**: [SPEC-012] Aprovado e transicionado: `ux_approved` ➔ `tech_approved` (Fase Ativa: `qa_tdd`).
+* **2026-08-01**: [SPEC-012] Aprovado e transicionado: `spec_approved` ➔ `ux_approved` (Fase Ativa: `architect`).
+* **2026-08-01**: [SPEC-012] Aprovado e transicionado: `draft` ➔ `spec_approved` (Fase Ativa: `ux`).
+* **2026-08-01**: [SPEC-012] ativada como spec prioritária (topo da fila ativa).
+* **2026-08-01**: [SPEC-012] ativada como spec prioritária (topo da fila ativa).
+* **2026-08-01**: [SPEC-012] ativada como spec prioritária (topo da fila ativa).
+* **2026-08-01**: Nova especificação `SPEC-015` (`015_threshold_de_rebalanceamento_por_desvio_percentual.md`) status `draft` fase `pm`.
+* **2026-08-01**: Nova especificação `SPEC-014` (`014_suporte_completo_a_bdrs_como_classe_de_ativos.md`) status `draft` fase `pm`.
+* **2026-08-01**: Nova especificação `SPEC-013` (`013_persistir_carteira_e_preferências_entre_sessões.md`) status `draft` fase `pm`.
+* **2026-08-01**: Nova especificação `SPEC-012` (`012_exportar_carteira_e_plano_de_rebalanceamento.md`) status `draft` fase `pm`.
 * **2026-07-26**: [SPEC-011] Aprovado e transicionado: `tested` ➔ `done` (Fase Ativa: `done`).
 * **2026-07-26**: [SPEC-011] Aprovado e transicionado: `code_review` ➔ `tested` (Fase Ativa: `pm_dod`).
 * **2026-07-26**: [SPEC-011] Aprovado e transicionado: `test_red` ➔ `code_review` (Fase Ativa: `qa_validation`).

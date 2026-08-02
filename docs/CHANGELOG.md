@@ -7,6 +7,10 @@ Cada entrada deve descrever impacto (o que mudou para usuários/sistema), não d
 ## [Não Lançado]
 
 ### Adicionado
+- **SPEC-012**: Exportar carteira alvo e plano de rebalance em CSV (download pós-geração).
+- **SPEC-015**: Limiar de rebalance (default 5% do patrimônio alvo); filtra ações com desvio menor.
+- **SPEC-014**: Classe **BDRs** com lista padrão B3 (yfinance) e classificação `BDRs`/`BR`.
+- **SPEC-013**: Persistência de carteira e preferências no browser (query params); botões salvar/limpar.
 - **SPEC-006 [HOTFIX]**: Harness `./devkit review` estável — `pytest.ini` (pythonpath), ruff exclui CLI `devkit`, lint cobre pacotes do app, testes via `python -m pytest`. *Auditoria hotfix: PM/UX/Architect pulados; risco residual baixo (tooling apenas).*
 - **SPEC-010**: Aviso na UI quando ativos têm histórico curto demais para indicadores técnicos completos.
 - **DevKit-AI (upgrade)**: CLI com `doctor`, `log`, `activate`, `hotfix`, `reject`, `sync --migrate-lifecycle`; fase UX (`ux_approved`); agent `ux-designer`; skills `ui-ux` e `microcopy`; templates ADR/tech-spec; hook pre-commit; CI `devkit-review`; guia em `docs/GUIA-DO-USUARIO.md`.

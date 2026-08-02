@@ -56,3 +56,42 @@
 {"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-011", "from_status": "test_red", "to_status": "code_review", "phase": "qa_validation"}
 {"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-011", "from_status": "code_review", "to_status": "tested", "phase": "pm_dod"}
 {"ts": "2026-07-26T21:54:33", "event": "approve", "code": "SPEC-011", "from_status": "tested", "to_status": "done", "phase": "done"}
+{"ts": "2026-08-01T22:49:01", "event": "doctor", "ok": true}
+{"ts": "2026-08-01T22:50:13", "event": "propose", "code": "SPEC-012", "title": "Exportar carteira e plano de rebalanceamento", "mode": "flags"}
+{"ts": "2026-08-01T22:50:13", "event": "propose", "code": "SPEC-013", "title": "Persistir carteira e preferências entre sessões", "mode": "flags"}
+{"ts": "2026-08-01T22:50:13", "event": "propose", "code": "SPEC-014", "title": "Suporte completo a BDRs como classe de ativos", "mode": "flags"}
+{"ts": "2026-08-01T22:50:13", "event": "propose", "code": "SPEC-015", "title": "Threshold de rebalanceamento por desvio percentual", "mode": "flags"}
+{"ts": "2026-08-01T22:50:27", "event": "activate", "code": "SPEC-012"}
+{"ts": "2026-08-01T22:52:12", "event": "activate", "code": "SPEC-012"}
+{"ts": "2026-08-01T22:58:51", "event": "activate", "code": "SPEC-012"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-012", "from_status": "draft", "to_status": "spec_approved", "phase": "ux"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-012", "from_status": "spec_approved", "to_status": "ux_approved", "phase": "architect"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-012", "from_status": "ux_approved", "to_status": "tech_approved", "phase": "qa_tdd"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-012", "from_status": "tech_approved", "to_status": "test_red", "phase": "developer"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-012", "from_status": "test_red", "to_status": "code_review", "phase": "qa_validation"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-012", "from_status": "code_review", "to_status": "tested", "phase": "pm_dod"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-012", "from_status": "tested", "to_status": "done", "phase": "done"}
+{"ts": "2026-08-01T22:58:51", "event": "activate", "code": "SPEC-015"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-015", "from_status": "draft", "to_status": "spec_approved", "phase": "ux"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-015", "from_status": "spec_approved", "to_status": "ux_approved", "phase": "architect"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-015", "from_status": "ux_approved", "to_status": "tech_approved", "phase": "qa_tdd"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-015", "from_status": "tech_approved", "to_status": "test_red", "phase": "developer"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-015", "from_status": "test_red", "to_status": "code_review", "phase": "qa_validation"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-015", "from_status": "code_review", "to_status": "tested", "phase": "pm_dod"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-015", "from_status": "tested", "to_status": "done", "phase": "done"}
+{"ts": "2026-08-01T22:58:51", "event": "activate", "code": "SPEC-014"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-014", "from_status": "draft", "to_status": "spec_approved", "phase": "ux"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-014", "from_status": "spec_approved", "to_status": "ux_approved", "phase": "architect"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-014", "from_status": "ux_approved", "to_status": "tech_approved", "phase": "qa_tdd"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-014", "from_status": "tech_approved", "to_status": "test_red", "phase": "developer"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-014", "from_status": "test_red", "to_status": "code_review", "phase": "qa_validation"}
+{"ts": "2026-08-01T22:58:51", "event": "approve", "code": "SPEC-014", "from_status": "code_review", "to_status": "tested", "phase": "pm_dod"}
+{"ts": "2026-08-01T22:58:52", "event": "approve", "code": "SPEC-014", "from_status": "tested", "to_status": "done", "phase": "done"}
+{"ts": "2026-08-01T22:58:52", "event": "activate", "code": "SPEC-013"}
+{"ts": "2026-08-01T22:58:52", "event": "approve", "code": "SPEC-013", "from_status": "draft", "to_status": "spec_approved", "phase": "ux"}
+{"ts": "2026-08-01T22:58:52", "event": "approve", "code": "SPEC-013", "from_status": "spec_approved", "to_status": "ux_approved", "phase": "architect"}
+{"ts": "2026-08-01T22:58:52", "event": "approve", "code": "SPEC-013", "from_status": "ux_approved", "to_status": "tech_approved", "phase": "qa_tdd"}
+{"ts": "2026-08-01T22:58:52", "event": "approve", "code": "SPEC-013", "from_status": "tech_approved", "to_status": "test_red", "phase": "developer"}
+{"ts": "2026-08-01T22:58:52", "event": "approve", "code": "SPEC-013", "from_status": "test_red", "to_status": "code_review", "phase": "qa_validation"}
+{"ts": "2026-08-01T22:58:52", "event": "approve", "code": "SPEC-013", "from_status": "code_review", "to_status": "tested", "phase": "pm_dod"}
+{"ts": "2026-08-01T22:58:52", "event": "approve", "code": "SPEC-013", "from_status": "tested", "to_status": "done", "phase": "done"}

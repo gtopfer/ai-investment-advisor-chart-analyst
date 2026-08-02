@@ -4,12 +4,15 @@ import os
 APP_TITLE = "AI Investment Advisor & Chart Analyst"
 APP_ICON = "📈"
 
-# Classes expostas no multiselect da sidebar (fonte única — SPEC-008)
-ASSET_CLASS_OPTIONS = ["Ações", "FIIs", "ETFs", "Cripto"]
-
+# Classes expostas no multiselect da sidebar (fonte única)
+# SPEC-008 removeu BDRs mortos; SPEC-014 reintroduz com lista real
+ASSET_CLASS_OPTIONS = ["Ações", "FIIs", "ETFs", "BDRs", "Cripto"]
 
 # Períodos de Análise
 DEFAULT_PERIOD = "1y"
+
+# Threshold padrão de rebalance (SPEC-015) — % do patrimônio alvo
+DEFAULT_REBALANCE_THRESHOLD_PCT = 5.0
 
 # Pesos Padrão para Estratégias (Técnico, Dividendos)
 STRATEGY_WEIGHTS = {
@@ -40,6 +43,16 @@ DEFAULT_TICKERS_CRYPTO = [
     "DOGE-USD",
     "DOT-USD",
     "LINK-USD",
+]
+# BDRs líquidos B3 (yfinance) — SPEC-014
+DEFAULT_TICKERS_BR_BDRS = [
+    "AAPL34.SA",
+    "MSFT34.SA",
+    "GOGL34.SA",
+    "AMZO34.SA",
+    "NVDC34.SA",
+    "TSLA34.SA",
+    "META34.SA",
 ]
 
 # Chaves / modelos de LLM (env)

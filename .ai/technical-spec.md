@@ -172,6 +172,11 @@ Não aplicável — o sistema não possui persistência. O estado vive em memór
 
 ## 9. Histórico de Decisões Arquiteturais
 
+### 2026-08-01 — SPEC-012…015: export, threshold, BDRs, persistência browser
+**Contexto:** Usuário pediu export CSV, limiar de rebalance, BDRs reais e persistência local.
+**Decisão:** (1) CSV via stdlib + `st.download_button` (`portfolio/export_csv.py`); (2) desvio `% = |delta|/patrimônio_alvo*100`, default 5%, filtra no `build_rebalance_actions`; (3) `DEFAULT_TICKERS_BR_BDRS` + classe no multiselect; (4) prefs em `st.query_params` token base64 JSON (`portfolio/persistence.py`), sem senhas/API keys.
+**Consequências:** Plano exportado já filtrado; reload rehidrata URL; BDRs independem do rádio de universo.
+
 ### 2026-07-26 — SPEC-006…011: Higiene de harness, domínio e UX honesta
 **Contexto:** Pós-upgrade do DevKit, review falhava; dívida de parse duplicado, plotly ocioso, BDRs mortos, `app.py` acoplado e histórico curto silencioso.
 **Decisão:** (1) Harness local (`pytest.ini`, ruff exclude `devkit`, review com pacotes + `python -m pytest`); (2) parse canônico em `portfolio/import_portfolio.py`; (3) remover BDRs do multiselect (`ASSET_CLASS_OPTIONS`); (4) remover plotly; (5) flag `insufficient_history` + warning UI; (6) `portfolio/candidates.py` + logging em `app.py`.
