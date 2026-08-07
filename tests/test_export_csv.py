@@ -1,7 +1,7 @@
 """SPEC-012: export CSV."""
 
-from models.schemas import AssetAnalysis, TechnicalIndicators
-from portfolio.export_csv import portfolio_target_to_csv, rebalance_actions_to_csv
+from ducks.portfolio.export_csv import portfolio_target_to_csv, rebalance_actions_to_csv
+from shared.models.schemas import AssetAnalysis, TechnicalIndicators
 
 
 def _asset(ticker: str, value: float = 1000.0) -> AssetAnalysis:

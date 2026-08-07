@@ -1,6 +1,6 @@
 import pandas as pd
 
-from analysis.technical_analysis import analyze_chart_patterns
+from ducks.analysis.technical_analysis import analyze_chart_patterns
 
 
 def test_analyze_chart_patterns_returns_neutral_when_insufficient():

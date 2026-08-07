@@ -2,13 +2,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import analysis.ai_chart_engine as engine
-from analysis.ai_chart_engine import (
+import ducks.analysis.ai_chart_engine as engine
+from ducks.analysis.ai_chart_engine import (
     _fallback_result,
     _parse_ai_response,
     run_ai_technical_analysis,
 )
-from models.schemas import TechnicalIndicators
+from shared.models.schemas import TechnicalIndicators
 
 
 def _base_indicators() -> TechnicalIndicators:

@@ -1,9 +1,12 @@
-from allocator.portfolio_allocator import score_assets
-from analysis.dividend_analysis import analyze_dividends
-from models.schemas import AssetAnalysis, DividendMetrics, TechnicalIndicators
-from portfolio.candidates import classify_ticker
-from portfolio.import_portfolio import parse_current_portfolio, parse_portfolio_csv
-from utils.tickers import is_crypto_ticker, normalize_ticker
+from ducks.analysis.dividend_analysis import analyze_dividends
+from ducks.portfolio.allocator import score_assets
+from ducks.portfolio.candidates import classify_ticker
+from ducks.portfolio.import_portfolio import (
+    parse_current_portfolio,
+    parse_portfolio_csv,
+)
+from shared.models.schemas import AssetAnalysis, DividendMetrics, TechnicalIndicators
+from shared.utils.tickers import is_crypto_ticker, normalize_ticker
 
 
 def _tech(**kwargs) -> TechnicalIndicators:

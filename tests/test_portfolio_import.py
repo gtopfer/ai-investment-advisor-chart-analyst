@@ -1,4 +1,4 @@
-from portfolio.import_portfolio import (
+from ducks.portfolio.import_portfolio import (
     format_positions_as_text,
     import_portfolio_file,
     parse_current_portfolio,
@@ -58,7 +58,7 @@ def test_parse_current_portfolio_delegates_to_shared_txt_parser():
 def test_single_numeric_parser_source():
     """Não deve haver cópia de _parse_numeric_value em app.py."""
     import app as app_mod
-    import portfolio.import_portfolio as port_mod
+    import ducks.portfolio.import_portfolio as port_mod
 
     assert hasattr(port_mod, "_parse_numeric_value")
     assert not hasattr(app_mod, "_parse_numeric_value")

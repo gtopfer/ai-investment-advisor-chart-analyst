@@ -46,29 +46,22 @@ Cobertura de mercado: ações e FIIs brasileiros (B3), ações e ETFs americanos
 
 ## 🛠️ Arquitetura
 
-Pipeline de dados em camadas funcionais — sem persistência, sem framework backend separado:
+Ducks Pattern (domínio por pasta) + shared — sem framework backend separado:
 
 ```text
 ai-investment-advisor-chart-analyst/
-├── app.py                      # Orquestrador: entrypoint Streamlit, monta o pipeline
-├── config/
-│   └── config.py               # Configuração global, tickers padrão, pesos de estratégia
-├── data_fetcher/
-│   └── market_data.py          # Coleta via yfinance (cache 15min + retry)
-├── analysis/
-│   ├── technical_analysis.py   # Indicadores técnicos (pandas-ta)
-│   ├── dividend_analysis.py    # Análise de proventos
-│   └── ai_chart_engine.py      # Orquestra prompt/parse e delega ao provedor LLM
-├── llm/
-│   └── ...                     # Adapters Groq e OpenAI-compatible + registry
-├── portfolio/
-│   └── import_portfolio.py     # Import CSV/TXT da carteira atual
-├── allocator/
-│   └── portfolio_allocator.py  # Scoring, alocação, rebalance e projeção
-├── models/
-│   └── schemas.py              # Dataclasses de contrato entre camadas
-└── ui/
-    └── layout.py               # Tema escuro, sidebar e resultados
+├── app.py                      # Orquestrador Streamlit (pipeline)
+├── ducks/
+│   ├── market/                 # yfinance: preços, fundamentos, dividendos
+│   ├── analysis/               # técnico, proventos, IA de chart
+│   ├── portfolio/              # carteira, alocação, rebalance, prefs
+│   ├── llm/                    # providers Groq / OpenAI-compatible
+│   └── ui/                     # layout, theme, i18n
+├── shared/
+│   ├── config/                 # env, tickers padrão, pesos
+│   ├── models/                 # dataclasses de contrato
+│   └── utils/                  # fx, tickers
+└── tests/
 ```
 
 Documentação técnica completa (diagramas, contratos de interface, decisões arquiteturais e riscos mapeados) em [`docs/technical-spec.md`](docs/technical-spec.md). Arquitetura e design system em [`system-design.md`](system-design.md). Processo de agentes **jojo-ai v1.4**: edite Features em [`agents.md`](agents.md) e diga *siga agents.md* — ver também [`docs/README.md`](docs/README.md).
@@ -197,10 +190,11 @@ Detalhamento completo de riscos e mitigações em [`docs/technical-spec.md`](doc
 
 Projeto modular — pontos de extensão comuns:
 
-- Novos indicadores técnicos → `analysis/technical_analysis.py`
-- Ajustes no prompt/parsing da IA → `analysis/ai_chart_engine.py`
-- Novas fontes de dados de mercado → `data_fetcher/`
-- Novos tickers padrão ou pesos de estratégia → `config/config.py`
+- Novos indicadores técnicos → `ducks/analysis/technical_analysis.py`
+- Ajustes no prompt/parsing da IA → `ducks/analysis/ai_chart_engine.py`
+- Novas fontes de dados de mercado → `ducks/market/`
+- Novos tickers padrão ou pesos de estratégia → `shared/config/config.py`
+- Alocação / rebalance → `ducks/portfolio/allocator.py`
 
 Antes de abrir um PR, rode `pytest -q` e `ruff check .` localmente.
 

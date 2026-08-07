@@ -1,6 +1,6 @@
 {
   "version": "1.2",
-  "generated": "2026-08-07T16:01:27.814Z",
+  "generated": "2026-08-07T16:13:34.050Z",
   "sourceOfTruth": {
     "product": "agents.md",
     "systemDesign": "system-design.md",
@@ -27,7 +27,7 @@
     "Investidores em aprendizado e uso pessoal/demo — não é recomendação profissional de investimento."
   ],
   "conventions": {
-    "naming": "snake_case (Python); pacotes por camada funcional",
+    "naming": "snake_case (Python); um duck por domínio",
     "code style": "ruff (lint + format)",
     "testes em `tests/`; fixtures de mercado em `tests/fixtures/`": true,
     "histórico de specs": "`docs/specs/`; detalhe técnico: `docs/technical-spec.md`",
@@ -35,19 +35,21 @@
   },
   "guardrails": {
     "mustHave": [
-      "Pipeline em camadas funcionais (`config → data_fetcher → analysis → allocator → models → ui`, orquestrado por `app.py`)",
-      "`models/schemas.py` sem dependências internas do projeto",
+      "Ducks Pattern: código de feature em `ducks/<domínio>/` com API pública em `__init__.py` — ver `system-design.md` §2",
+      "Shared só para config/models/utils (`shared/`)",
+      "`shared/models` sem dependências de ducks",
       "Chaves de API e senhas só via env (nunca hardcoded / query params)",
       "Disclaimer educacional sempre visível; sem tom de “dica de compra”",
       "TDD para feature nova ou regressão relevante"
     ],
     "mustNOT": [
-      "Sem lógica de negócio em `ui/`; sem yfinance/LLM direto na UI"
+      "Sem lógica de negócio em `ducks/ui/`; sem yfinance/LLM direto na UI"
     ],
     "all": [
-      "Pipeline em camadas funcionais (`config → data_fetcher → analysis → allocator → models → ui`, orquestrado por `app.py`)",
-      "Sem lógica de negócio em `ui/`; sem yfinance/LLM direto na UI",
-      "`models/schemas.py` sem dependências internas do projeto",
+      "Ducks Pattern: código de feature em `ducks/<domínio>/` com API pública em `__init__.py` — ver `system-design.md` §2",
+      "Shared só para config/models/utils (`shared/`)",
+      "Sem lógica de negócio em `ducks/ui/`; sem yfinance/LLM direto na UI",
+      "`shared/models` sem dependências de ducks",
       "Chaves de API e senhas só via env (nunca hardcoded / query params)",
       "Disclaimer educacional sempre visível; sem tom de “dica de compra”",
       "TDD para feature nova ou regressão relevante"

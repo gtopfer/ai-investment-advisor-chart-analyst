@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 import streamlit as st
 
-from data_fetcher.market_data import (
+from ducks.market.market_data import (
     get_dividend_history,
     get_fundamentals,
     get_price_history,

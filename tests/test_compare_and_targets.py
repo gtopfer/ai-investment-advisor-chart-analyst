@@ -1,10 +1,10 @@
 
-from allocator.portfolio_allocator import (
+from ducks.portfolio.allocator import (
     allocate_capital,
     compare_strategies,
     score_assets,
 )
-from models.schemas import AssetAnalysis, TechnicalIndicators
+from shared.models.schemas import AssetAnalysis, TechnicalIndicators
 
 
 def _a(ticker, cls, rsi=30, macd="bullish", ema="uptrend"):

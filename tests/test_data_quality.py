@@ -1,7 +1,7 @@
 """SPEC-010: avisos de qualidade de dados (histórico curto)."""
 
 from app import _tickers_with_insufficient_history
-from models.schemas import AssetAnalysis, TechnicalIndicators
+from shared.models.schemas import AssetAnalysis, TechnicalIndicators
 
 
 def test_tickers_with_insufficient_history_lists_flagged_assets():

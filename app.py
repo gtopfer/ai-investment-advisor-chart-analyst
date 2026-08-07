@@ -7,18 +7,42 @@ from datetime import UTC, datetime
 import streamlit as st
 from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
 
-from allocator.portfolio_allocator import (
+from ducks.analysis import (
+    analyze_chart_patterns,
+    analyze_dividends,
+    run_ai_technical_analysis,
+)
+from ducks.market import get_dividend_history, get_fundamentals, get_price_history
+from ducks.portfolio import (
+    QUERY_KEY,
     allocate_capital,
+    build_candidate_tickers,
     build_projected_portfolio,
     build_rebalance_actions,
+    classify_ticker,
     compare_strategies,
+    encode_prefs,
+    evaluate_alerts,
+    format_positions_as_text,
+    parse_current_portfolio,
+    parse_extra_tickers,
     projected_positions_for_session,
+    save_prefs_file,
     score_assets,
 )
-from analysis.ai_chart_engine import run_ai_technical_analysis
-from analysis.dividend_analysis import analyze_dividends
-from analysis.technical_analysis import analyze_chart_patterns
-from config.config import (
+from ducks.ui import (
+    display_portfolio,
+    display_projected_portfolio,
+    display_rebalance_plan,
+    display_strategy_comparison,
+    display_summary_metrics,
+    display_watchlist_alerts,
+    render_disclaimer,
+    render_empty_state,
+    render_header,
+    render_sidebar,
+)
+from shared.config.config import (
     AI_ACCESS_PASSWORD,
     APP_ICON,
     APP_TITLE,
@@ -31,38 +55,13 @@ from config.config import (
     RUN_HISTORY_MAX,
     STRATEGY_WEIGHTS,
 )
-from data_fetcher.market_data import (
-    get_dividend_history,
-    get_fundamentals,
-    get_price_history,
+from shared.models import AssetAnalysis
+from shared.utils import (
+    convert_amount,
+    fetch_usd_brl_rate,
+    normalize_currency,
+    normalize_ticker,
 )
-from models.schemas import AssetAnalysis
-from portfolio.alerts import evaluate_alerts
-from portfolio.candidates import (
-    build_candidate_tickers,
-    classify_ticker,
-    parse_extra_tickers,
-)
-from portfolio.import_portfolio import format_positions_as_text, parse_current_portfolio
-from portfolio.persistence import (
-    QUERY_KEY,
-    encode_prefs,
-    save_prefs_file,
-)
-from ui.layout import (
-    display_portfolio,
-    display_projected_portfolio,
-    display_rebalance_plan,
-    display_strategy_comparison,
-    display_summary_metrics,
-    display_watchlist_alerts,
-    render_disclaimer,
-    render_empty_state,
-    render_header,
-    render_sidebar,
-)
-from utils.fx import convert_amount, fetch_usd_brl_rate, normalize_currency
-from utils.tickers import normalize_ticker
 
 logging.basicConfig(level=getattr(logging, LOG_LEVEL.upper(), logging.INFO))
 logger = logging.getLogger(__name__)
@@ -126,7 +125,7 @@ def _process_single_ticker(
 
     tech_indicators = analyze_chart_patterns(ticker, price_df)
     if quick_mode:
-        from models.schemas import DividendMetrics
+        from shared.models.schemas import DividendMetrics
 
         div_metrics = DividendMetrics(
             dy=0.0,
@@ -604,7 +603,7 @@ def _render_last_run():
         display_watchlist_alerts(run["watchlist_alerts"])
 
     if any(a.ai_analysis for a in run["scored_assets"]):
-        from ui.i18n import t as _t
+        from ducks.ui.i18n import t as _t
 
         st.info(_t("ai_risks", run.get("lang", "pt")))
 

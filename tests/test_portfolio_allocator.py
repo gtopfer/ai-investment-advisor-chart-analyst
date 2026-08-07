@@ -1,5 +1,5 @@
-from allocator.portfolio_allocator import allocate_capital, score_assets
-from models.schemas import AIAnalysisResult, AssetAnalysis, TechnicalIndicators
+from ducks.portfolio.allocator import allocate_capital, score_assets
+from shared.models.schemas import AIAnalysisResult, AssetAnalysis, TechnicalIndicators
 
 
 def _fake_indicators(rsi: float = 30.0, macd_signal: str = "bullish", ema_trend: str = "uptrend") -> TechnicalIndicators:

@@ -6,7 +6,7 @@
 > Detalhe histórico e contratos: [`docs/technical-spec.md`](docs/technical-spec.md).
 
 **Última atualização:** 2026-08-07  
-**Versão do design:** 1.2  
+**Versão do design:** 1.3  
 **Projeto:** AI Investment Advisor & Chart Analyst
 
 ---
@@ -51,34 +51,38 @@ flowchart TD
 
 ### 2.1 Estilo
 
-- [x] Pipeline em camadas funcionais (monólito Streamlit)
-- [ ] Clean Architecture domain/application/adapters (desviado de propósito — ver `docs/technical-spec.md` §9)
+- [x] Ducks Pattern (domínio/feature em pasta) + monólito Streamlit
+- [x] Pipeline orquestrado em `app.py` (fluxo de dados entre ducks)
+- [ ] Clean Architecture domain/application/adapters (fora de escopo — ver `docs/technical-spec.md` §9)
 
-**Justificativa:** script Streamlit stateless; domínio é cálculo sobre DataFrames; camadas extras não pagariam o custo neste escopo.
+**Justificativa:** coesão por feature (ducks) com shared mínimo; script Streamlit stateless sem backend separado.
 
-### 2.2 Camadas / pastas
+### 2.2 Camadas / pastas (Ducks)
 
 ```
-app.py                      # orquestrador
-config/                     # env, tickers padrão, pesos
-data_fetcher/               # yfinance + cache/retry (+ core offline)
-analysis/                   # técnico, dividendos, AI chart
-allocator/                  # score, alocação, rebalance, projeção
-portfolio/                  # parse, candidatos, export, prefs, alertas
-models/schemas.py           # contratos dataclass
-llm/                        # providers pluggable
-ui/                         # layout, theme, i18n
-utils/                      # fx, tickers
+app.py                         # orquestrador Streamlit
+ducks/
+  market/                      # fetch yfinance (API pública em __init__)
+  analysis/                    # técnico, dividendos, AI chart
+  portfolio/                   # carteira, alocação, rebalance, prefs, alertas
+  llm/                         # providers pluggable
+  ui/                          # layout, theme, i18n
+shared/
+  config/                      # env, tickers, pesos
+  models/                      # dataclasses de contrato
+  utils/                       # fx, tickers
 tests/
-docs/                       # changelog de produto, backlog, specs, technical-spec
+docs/
+kit/                           # jojo-ai (processo de agentes)
 ```
 
 **Regra de dependência:**  
-- `models/` → zero imports internos do app  
-- `data_fetcher/` e `analysis/` → não importam `ui/`  
-- `allocator/` → só `models`/`config` (recebe `AssetAnalysis` pronto)  
-- `ui/` → só apresentação Streamlit  
-- `app.py` → único orquestrador entre camadas  
+- `shared/models` → zero imports de ducks  
+- `ducks/market` e `ducks/analysis` → não importam `ducks/ui`  
+- `ducks/portfolio` → usa `shared/models` + `shared/config` (recebe `AssetAnalysis` pronto)  
+- `ducks/ui` → apresentação Streamlit; pode importar APIs públicas de outros ducks  
+- Preferir imports via `__init__.py` (API pública do duck)  
+- `app.py` → único orquestrador do pipeline entre ducks  
 
 ### 2.3 Stack
 

@@ -1,6 +1,6 @@
 from app import _split_results
-from config.config import ASSET_CLASS_OPTIONS, DEFAULT_TICKERS_US_ETFS
-from portfolio.candidates import build_candidate_tickers, classify_ticker
+from ducks.portfolio.candidates import build_candidate_tickers, classify_ticker
+from shared.config.config import ASSET_CLASS_OPTIONS, DEFAULT_TICKERS_US_ETFS
 
 
 def test_build_candidate_tickers_filters_etfs_only():
@@ -58,7 +58,7 @@ def test_asset_class_options_include_bdrs():
 
 
 def test_build_candidate_tickers_bdrs_has_defaults():
-    from config.config import DEFAULT_TICKERS_BR_BDRS
+    from shared.config.config import DEFAULT_TICKERS_BR_BDRS
 
     tickers = build_candidate_tickers(["BDRs"], "Internacional")
     assert set(DEFAULT_TICKERS_BR_BDRS).issubset(set(tickers))

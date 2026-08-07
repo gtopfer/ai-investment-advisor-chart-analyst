@@ -1,4 +1,4 @@
-from utils.fx import convert_amount, fetch_usd_brl_rate, normalize_currency
+from shared.utils.fx import convert_amount, fetch_usd_brl_rate, normalize_currency
 
 
 def test_normalize_currency():

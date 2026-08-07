@@ -35,15 +35,16 @@ def test_ruff_excludes_non_app_paths():
 def test_ruff_application_packages_exist_for_review_scope():
     """Pacotes que o review deve cobrir (além de app.py e tests/)."""
     expected = [
-        "analysis",
-        "allocator",
-        "ui",
-        "llm",
-        "portfolio",
-        "config",
-        "data_fetcher",
-        "models",
-        "utils",
+        "ducks",
+        "ducks/analysis",
+        "ducks/market",
+        "ducks/portfolio",
+        "ducks/llm",
+        "ducks/ui",
+        "shared",
+        "shared/config",
+        "shared/models",
+        "shared/utils",
     ]
     for name in expected:
         assert (ROOT / name).is_dir(), f"pacote ausente: {name}"

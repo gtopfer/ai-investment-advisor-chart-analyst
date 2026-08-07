@@ -1,7 +1,7 @@
 """SPEC-026: integração com fetch mockado."""
 
-from allocator.portfolio_allocator import allocate_capital, score_assets
-from models.schemas import AssetAnalysis, TechnicalIndicators
+from ducks.portfolio.allocator import allocate_capital, score_assets
+from shared.models.schemas import AssetAnalysis, TechnicalIndicators
 
 
 def test_score_and_allocate_pipeline_mock():

@@ -1,6 +1,6 @@
-from models.schemas import AssetAnalysis, DividendMetrics, TechnicalIndicators
-from portfolio.alerts import evaluate_alerts
-from portfolio.candidates import build_candidate_tickers, parse_extra_tickers
+from ducks.portfolio.alerts import evaluate_alerts
+from ducks.portfolio.candidates import build_candidate_tickers, parse_extra_tickers
+from shared.models.schemas import AssetAnalysis, DividendMetrics, TechnicalIndicators
 
 
 def test_parse_extra_tickers():

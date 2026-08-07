@@ -41,16 +41,17 @@ Investidores em aprendizado e uso pessoal/demo — não é recomendação profis
 
 **Guardrails Obrigatórios:**
 
-- Pipeline em camadas funcionais (`config → data_fetcher → analysis → allocator → models → ui`, orquestrado por `app.py`)
-- Sem lógica de negócio em `ui/`; sem yfinance/LLM direto na UI
-- `models/schemas.py` sem dependências internas do projeto
+- Ducks Pattern: código de feature em `ducks/<domínio>/` com API pública em `__init__.py` — ver `system-design.md` §2
+- Shared só para config/models/utils (`shared/`)
+- Sem lógica de negócio em `ducks/ui/`; sem yfinance/LLM direto na UI
+- `shared/models` sem dependências de ducks
 - Chaves de API e senhas só via env (nunca hardcoded / query params)
 - Disclaimer educacional sempre visível; sem tom de “dica de compra”
 - TDD para feature nova ou regressão relevante
 
 **Convenções:**
 
-- Naming: snake_case (Python); pacotes por camada funcional
+- Naming: snake_case (Python); um duck por domínio
 - Code style: ruff (lint + format)
 - Testes em `tests/`; fixtures de mercado em `tests/fixtures/`
 - Histórico de specs: `docs/specs/`; detalhe técnico: `docs/technical-spec.md`
@@ -61,7 +62,7 @@ Investidores em aprendizado e uso pessoal/demo — não é recomendação profis
 ### Features
 
 > **VOCÊ ESCREVE A FEATURE AQUI.**  
-> A IA usa esta lista como backlog: pega o primeiro `- [ ]`, mapeia, pede OK e entra no ciclo (spec → UX → arch → TDD → código).
+> A IA usa esta lista como backlog: pega o **primeiro** `- [ ]`, mapeia, pede OK e entra no ciclo (spec → UX → arch → TDD → código).
 
 **Como escrever (um item por feature):**
 
@@ -70,50 +71,49 @@ Investidores em aprendizado e uso pessoal/demo — não é recomendação profis
 - [x] Feature já entregue (a IA marca [x] quando done)
 ```
 
-**Backlog / histórico (edite isto):**
-
-#### Entregue (base + higiene + onda 012–035)
-
-- [x] Multi-LLM (Groq + OpenAI-compatible) — escolher provedor/modelo na sidebar
-- [x] Layout minimalista escuro — sidebar colapsável, empty state, cards
-- [x] Importar carteira atual via CSV/TXT + modelo baixável
-- [x] Visão “Como deve ficar” (projetada) e aplicar na sessão
-- [x] Suporte a cripto (normalização -USD, score só técnico)
-- [x] Harness de testes/lint estável (pytest path + ruff)
-- [x] Parse de carteira unificado em `portfolio/`
-- [x] Remover BDRs mortos do multiselect (depois: BDRs reais)
-- [x] Remover dependência plotly não usada
-- [x] Avisos de qualidade de dados (histórico curto)
-- [x] Extrair núcleo de domínio de `app.py` + logging
-- [x] Export CSV carteira/rebalance
-- [x] Persistir preferências no browser (query params)
-- [x] Suporte completo a BDRs como classe
-- [x] Threshold de rebalance por desvio %
-- [x] Moeda-base e conversão cambial (FX)
-- [x] Tickers extras / universo expansível
-- [x] Performance e modo rápido de geração
-- [x] Transparência e calibragem do score
-- [x] Comparar estratégias lado a lado
-- [x] Histórico de runs na sessão
-- [x] Persistência robusta de preferências
-- [x] Onboarding DX (dotenv, README, empty CTAs)
-- [x] Fatiar UI em módulos (sidebar/results/theme)
-- [x] Data fetcher desacoplado do cache Streamlit
-- [x] mypy gradual + teste de integração do pipeline
-- [x] Observabilidade de runs / logging estruturado
-- [x] Custos de corretagem e IR simplificado (educacional)
-- [x] Metas de alocação por classe de ativo
-- [x] Watchlist e alertas técnicos/dividendos
-- [x] Gráficos de preço no detalhe do ativo
-- [x] Explicação de riscos da IA e disclaimer reforçado
-- [x] Modo offline e fixtures de mercado
-- [x] Docker one-command run
-- [x] i18n inglês da interface
-- [x] Processo jojo-ai (agents.md + system-design + kit + CI)
-
 #### Pendente (próximo trabalho)
 
-<!-- Adicione itens com "- [ ] …". Se não houver nenhum - [ ], a IA pergunta o que fazer em vez de inventar feature. -->
+<!-- Adicione `- [ ] …` aqui. Sem itens abertos, a IA pergunta o que fazer. -->
+
+#### Entregue (auditado 2026-08-07 — código + testes OK)
+
+- [x] Refatoração Ducks Pattern — `ducks/{market,analysis,portfolio,llm,ui}` + `shared/{config,models,utils}`; APIs públicas; `system-design.md` §2 atualizado
+- [x] Multi-LLM (Groq + OpenAI-compatible) — `ducks/llm/` + registry + testes
+- [x] Layout minimalista escuro — `ducks/ui/theme.py`, `layout.py`
+- [x] Importar carteira atual via CSV/TXT + modelo baixável — `ducks/portfolio/import_portfolio.py`
+- [x] Visão “Como deve ficar” (projetada) e aplicar na sessão — `build_projected_portfolio`
+- [x] Suporte a cripto (normalização -USD, score só técnico) — testes crypto
+- [x] Harness de testes/lint estável (pytest path + ruff) — `pytest.ini`, `ruff.toml`
+- [x] Parse de carteira unificado em `ducks/portfolio/`
+- [x] Remover BDRs mortos do multiselect → depois BDRs reais (SPEC-008 + SPEC-014)
+- [x] Remover dependência plotly não usada — ausente de `requirements.txt`
+- [x] Avisos de qualidade de dados (histórico curto) — `insufficient_history`
+- [x] Extrair núcleo de domínio de `app.py` + logging — `ducks/portfolio/candidates.py`
+- [x] Export CSV carteira/rebalance — `ducks/portfolio/export_csv.py`
+- [x] Persistir preferências no browser (query params) — `ducks/portfolio/persistence.py`
+- [x] Suporte completo a BDRs como classe — `DEFAULT_TICKERS_BR_BDRS`
+- [x] Threshold de rebalance por desvio % — `rebalance_threshold_pct`
+- [x] Moeda-base e conversão cambial (FX) — `shared/utils/fx.py`
+- [x] Tickers extras / universo expansível — `parse_extra_tickers`
+- [x] Performance e modo rápido de geração — `FETCH_MAX_WORKERS` + `quick_mode`
+- [x] Transparência e calibragem do score — `score_breakdown`
+- [x] Comparar estratégias lado a lado — `compare_strategies`
+- [x] Histórico de runs na sessão — `run_history`
+- [x] Persistência robusta de preferências — prefs file + query params
+- [x] Onboarding DX (dotenv, README, empty CTAs) — `load_dotenv` em config
+- [x] Fatiar UI em módulos (sidebar/results/theme) — `ducks/ui/`
+- [x] Data fetcher desacoplado do cache Streamlit — `ducks/market/core.py`
+- [x] mypy gradual + teste de integração do pipeline — `mypy.ini` + `test_pipeline_integration`
+- [x] Observabilidade de runs / logging estruturado — logging + run_id no pipeline
+- [x] Custos de corretagem e IR simplificado (educacional)
+- [x] Metas de alocação por classe de ativo — `class_targets`
+- [x] Watchlist e alertas técnicos/dividendos — `ducks/portfolio/alerts.py`
+- [x] Gráficos de preço no detalhe do ativo
+- [x] Explicação de riscos da IA e disclaimer reforçado
+- [x] Modo offline e fixtures de mercado — fixtures + core offline
+- [x] Docker one-command run — `Dockerfile` + `docker-compose.yml`
+- [x] i18n inglês da interface — `ducks/ui/i18n.py`
+- [x] Processo jojo-ai (agents.md + system-design + kit + CI)
 
 ---
 
@@ -197,4 +197,5 @@ Catálogo: `kit/generated/skills-registry.json`
 
 **Nova feature → Seção 1 → `### Features` → item `- [ ] ...`**
 
-**Versão:** 1.4 | Backlog humano = `### Features`
+**Versão:** 1.4 | Backlog humano = `### Features`  
+**Última auditoria Features:** 2026-08-07 (Ducks Pattern entregue; suite pytest verde)

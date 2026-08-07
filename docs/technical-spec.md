@@ -172,6 +172,12 @@ Não aplicável — o sistema não possui persistência. O estado vive em memór
 
 ## 9. Histórico de Decisões Arquiteturais
 
+### 2026-08-07 — Ducks Pattern (reorganização de pastas)
+**Contexto:** Feature jojo: refatorar para Ducks Pattern sem mudar comportamento.
+**Decisão:** Código de domínio em `ducks/{market,analysis,portfolio,llm,ui}` com API pública em `__init__.py`; cross-cutting em `shared/{config,models,utils}`. Orquestração permanece em `app.py`.
+**Consequências:** Imports e docs atualizados; testes verdes; estrutura layer-by-type antiga removida.
+
+
 ### 2026-08-01 — SPEC-016…035: backlog de maturidade (FX, score, perf, eng, produto)
 **Contexto:** Auditoria de melhorias convertida em 20 specs e executada em lote.
 **Decisão:** (1) moeda-base BRL/USD via `utils/fx.py` + USDBRL=X; (2) tickers extras; (3) `score_breakdown` + pesos UI; (4) `FETCH_MAX_WORKERS` + modo rápido; (5) compare_strategies; (6) run_history sessão; (7) prefs arquivo `~/.ai_investment_advisor` + URL; (8) dotenv; (9) `data_fetcher/core` offline fixtures; (10) Docker; (11) i18n mínimo; (12) metas classe / custos educacionais / watchlist / charts close.

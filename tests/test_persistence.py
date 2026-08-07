@@ -1,6 +1,6 @@
 """SPEC-013: encode/decode de preferências."""
 
-from portfolio.persistence import DEFAULT_PREFS, decode_prefs, encode_prefs
+from ducks.portfolio.persistence import DEFAULT_PREFS, decode_prefs, encode_prefs
 
 
 def test_roundtrip_prefs():

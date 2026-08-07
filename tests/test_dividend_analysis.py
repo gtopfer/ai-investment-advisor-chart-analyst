@@ -1,7 +1,7 @@
 import pandas as pd
 
-from analysis.dividend_analysis import analyze_dividends
-from config.config import MIN_DY_THRESHOLD
+from ducks.analysis.dividend_analysis import analyze_dividends
+from shared.config.config import MIN_DY_THRESHOLD
 
 
 def test_analyze_dividends_zero_dy():

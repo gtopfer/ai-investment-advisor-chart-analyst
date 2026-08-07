@@ -1,8 +1,8 @@
-from allocator.portfolio_allocator import (
+from ducks.portfolio.allocator import (
     build_projected_portfolio,
     projected_positions_for_session,
 )
-from models.schemas import AssetAnalysis, TechnicalIndicators
+from shared.models.schemas import AssetAnalysis, TechnicalIndicators
 
 
 def _asset(ticker: str, suggested: float) -> AssetAnalysis:

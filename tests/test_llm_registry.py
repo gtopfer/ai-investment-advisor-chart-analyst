@@ -1,4 +1,4 @@
-from llm import registry
+from ducks.llm import registry
 
 
 def test_get_enabled_providers_groq_only(monkeypatch):
