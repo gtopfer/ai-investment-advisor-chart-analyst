@@ -12,5 +12,6 @@ venv/
 .pytest_cache/
 .ruff_cache/
 
-# jojo-ai kit
+# jojo-ai
 kit/node_modules/
+.ai/metrics.jsonl

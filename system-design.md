@@ -1,11 +1,12 @@
 # System Design — AI Investment Advisor & Chart Analyst
 
-> **Arquivo humano do SPECKIT / jojo-ai (junto com `agents.md`).**  
+> **Arquivo humano do jojo-ai (junto com `agents.md`).**  
 > Fonte da verdade de arquitetura e design system **deste** projeto.  
+> Backlog humano: `agents.md` → `### Features`.  
 > Detalhe histórico e contratos: [`docs/technical-spec.md`](docs/technical-spec.md).
 
 **Última atualização:** 2026-08-07  
-**Versão do design:** 1.1  
+**Versão do design:** 1.2  
 **Projeto:** AI Investment Advisor & Chart Analyst
 
 ---
@@ -138,15 +139,16 @@ docs/                       # changelog de produto, backlog, specs, technical-sp
 
 - Feature nova / bugfix: teste automatizado (skill TDD em `kit/docs/skills/tdd.md`)  
 - Review: ruff + pytest nos pacotes do app  
-- Processo: jojo-ai (fases em `agents.md` Seção 2)  
-- Histórico de features: `docs/specs/`, changelog de produto em `docs/CHANGELOG.md`  
+- Processo: **jojo-ai v1.4** — backlog em `agents.md` → `### Features`; fases em Seção 2; kit em `kit/`  
+- Histórico de specs: `docs/specs/`; changelog de produto: `docs/CHANGELOG.md`  
 - Rastreio de trabalho ativo: `CHANGELOG.md` na raiz  
 
 ---
 
 ## 6. Fora de escopo / não fazer
 
-- Reintroduzir DevKit (`./devkit`, pasta `.ai/` de agentes/skills/state, hooks pre-commit do devkit)  
+- Reintroduzir DevKit (`./devkit`, hooks pre-commit DevKit, CI `devkit-review`)  
+- Pedir ao humano arquivos extras de config além de `agents.md` / `system-design.md`  
 - Plotly (removido SPEC-009)  
 - Lógica de negócio em `ui/`  
 - Tratar saída da IA como ordem de compra/venda  

@@ -6,14 +6,12 @@ Atualizado por agentes com aceite humano. **Fica na raiz** junto com `agents.md`
 ## [Unreleased]
 
 ### Implemented
-- [x] SPECKIT jojo-ai: `agents.md` + `system-design.md` + `CHANGELOG.md` na raiz
-- [x] Kit interno em `kit/` (agents, skills, scripts, templates)
-- [x] CI `jojo-review.yml` (validação do kit)
-- [x] Seção 1 de `agents.md` e `system-design.md` preenchidos para este app
-- [x] Remoção completa do DevKit (`./devkit`, `.ai/` de agentes/state, hooks, CI/docs DevKit, backups, artefatos copy)
-- [x] Specs de produto migradas para `docs/specs/`, `docs/technical-spec.md`
-- [x] Referências e testes de harness atualizados (sem `devkit`)
+- [x] jojo-ai v1.4 instalado: `agents.md` (Features), `system-design.md`, `CHANGELOG.md`, `kit/`
+- [x] CI `jojo-review.yml` (`cd kit && npm run sync`)
+- [x] Seção 1 + Features preenchidas com histórico do app (001–035 entregues)
+- [x] `system-design.md` com arquitetura e design system do app
+- [x] Kit sincronizado a partir do repositório jojo-ai de referência
+- [x] DevKit removido (sem `./devkit`, hooks ou CI legada)
 
 ### To Do (Validated by Human)
-- [ ] CLI `./jojo` (status, approve, review, …) — se desejado
-- [ ] Continuar backlog em `docs/BACKLOG.md` (SPEC-016…035) via fluxo jojo-ai
+- [ ] Próxima feature: escrever em `agents.md` → `### Features` como `- [ ] …`

@@ -1,7 +1,10 @@
 # Backlog de melhorias (SPEC-016 … SPEC-035)
 
 Registrado em **2026-08-01** a partir da auditoria de produto/engenharia.  
-Specs em [`docs/specs/`](specs/). Processo atual: **jojo-ai** (`agents.md` + `system-design.md` + `CHANGELOG.md` + `kit/`).
+Specs em [`docs/specs/`](specs/).  
+
+> **Backlog ativo (jojo-ai v1.4):** `agents.md` → `### Features`.  
+> Esta página é **histórico/referência** das SPEC-016…035; o trabalho novo entra como `- [ ]` em Features.
 
 Ordem sugerida de execução (respeita dependências):
 

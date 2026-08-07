@@ -32,11 +32,13 @@
 
 Backlog (016–035): ver [BACKLOG.md](BACKLOG.md).
 
-## Processo (jojo-ai)
+## Processo (jojo-ai v1.4)
 
 | Arquivo | Função |
 | --- | --- |
-| `agents.md` | Produto + fluxo de agentes |
+| `agents.md` | Produto + **`### Features`** (backlog humano) + fluxo |
 | `system-design.md` | Arquitetura + design system |
 | `CHANGELOG.md` (raiz) | Feito vs pendente (trabalho ativo) |
 | `kit/` | Runbooks, skills, scripts, templates |
+
+**Nova feature:** edite `agents.md` → Seção 1 → `### Features` com um item `- [ ] …` e diga à IA: *siga agents.md*.

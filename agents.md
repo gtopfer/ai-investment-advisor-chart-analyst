@@ -1,37 +1,21 @@
 # AGENTS.MD
 
-Régua universal + Especificação do Projeto.
-
-**Superfície humana na raiz (3 arquivos):**
-
-| Arquivo | O que o humano preenche / acompanha |
-| --- | --- |
-| **`agents.md`** (este · Seção 1) | Produto, stack resumo, usuários, guardrails, convenções |
-| **`system-design.md`** | Arquitetura + design system **deste** projeto |
-| **`CHANGELOG.md`** | O que foi feito vs o que falta (agentes atualizam com seu OK) |
-
-Tudo o mais fica em **`kit/`** (runbooks, skills, scripts, templates, gerados).
+Régua universal + Especificação do Projeto.  
+**Processo:** [jojo-ai](https://github.com/gtopfer/jojo-ai) · versão 1.4
 
 ---
 
-## 🎯 Como Usar
+## 🎯 Como Usar (humano)
 
-1. Copie jojo-ai para o projeto (ou use como base)
-2. Edite **`agents.md` (Seção 1)**
-3. Edite **`system-design.md`**
-4. Agentes leem os 3 da raiz + `kit/` quando precisar
-5. Validam com você antes de executar
-6. Registram progresso em **`CHANGELOG.md`**
+1. Preencha **Seção 1** (projeto + **Features**)
+2. Preencha **`system-design.md`** (arquitetura / design system)
+3. Diga à IA: **"siga agents.md"**
+4. A IA lê as Features abaixo, mapeia e começa o loop (com seu OK no chat)
 
-### O que o humano edita vs. não edita
+**Onde escrever a NOVA FEATURE:**  
+→ **Seção 1 → `### Features`** (lista com `- [ ]` / `- [x]`)
 
-| Artefato | Quem mexe |
-| --- | --- |
-| `agents.md` Seção 1 | **Humano** |
-| `system-design.md` | **Humano** (agentes só com aceite, se o design mudar) |
-| `CHANGELOG.md` | Agentes (com OK) + humano pode ajustar prioridade |
-| `agents.md` Seção 2 | Kit (não altere) |
-| `kit/**` | Kit / agentes mantenedores — **não é setup do usuário** |
+Não precisa criar arquivo em outro lugar para “pedir” a feature. A IA mapeia dali.
 
 ---
 
@@ -69,29 +53,85 @@ Investidores em aprendizado e uso pessoal/demo — não é recomendação profis
 - Naming: snake_case (Python); pacotes por camada funcional
 - Code style: ruff (lint + format)
 - Testes em `tests/`; fixtures de mercado em `tests/fixtures/`
-- Specs históricas e backlog em `docs/specs/`; detalhe técnico em `docs/technical-spec.md`
-- Processo de agentes: **jojo-ai** (`agents.md` + `system-design.md` + `CHANGELOG.md` + `kit/`) — **sem DevKit**
+- Histórico de specs: `docs/specs/`; detalhe técnico: `docs/technical-spec.md`
+- Processo de agentes: **jojo-ai** — humano edita só `agents.md` + `system-design.md` + `CHANGELOG.md`
+
+---
+
+### Features
+
+> **VOCÊ ESCREVE A FEATURE AQUI.**  
+> A IA usa esta lista como backlog: pega o primeiro `- [ ]`, mapeia, pede OK e entra no ciclo (spec → UX → arch → TDD → código).
+
+**Como escrever (um item por feature):**
+
+```markdown
+- [ ] Título curto — o que o usuário ganha (1 linha). Detalhe opcional: quem usa, regra importante, fora de escopo.
+- [x] Feature já entregue (a IA marca [x] quando done)
+```
+
+**Backlog / histórico (edite isto):**
+
+#### Entregue (base + higiene + onda 012–035)
+
+- [x] Multi-LLM (Groq + OpenAI-compatible) — escolher provedor/modelo na sidebar
+- [x] Layout minimalista escuro — sidebar colapsável, empty state, cards
+- [x] Importar carteira atual via CSV/TXT + modelo baixável
+- [x] Visão “Como deve ficar” (projetada) e aplicar na sessão
+- [x] Suporte a cripto (normalização -USD, score só técnico)
+- [x] Harness de testes/lint estável (pytest path + ruff)
+- [x] Parse de carteira unificado em `portfolio/`
+- [x] Remover BDRs mortos do multiselect (depois: BDRs reais)
+- [x] Remover dependência plotly não usada
+- [x] Avisos de qualidade de dados (histórico curto)
+- [x] Extrair núcleo de domínio de `app.py` + logging
+- [x] Export CSV carteira/rebalance
+- [x] Persistir preferências no browser (query params)
+- [x] Suporte completo a BDRs como classe
+- [x] Threshold de rebalance por desvio %
+- [x] Moeda-base e conversão cambial (FX)
+- [x] Tickers extras / universo expansível
+- [x] Performance e modo rápido de geração
+- [x] Transparência e calibragem do score
+- [x] Comparar estratégias lado a lado
+- [x] Histórico de runs na sessão
+- [x] Persistência robusta de preferências
+- [x] Onboarding DX (dotenv, README, empty CTAs)
+- [x] Fatiar UI em módulos (sidebar/results/theme)
+- [x] Data fetcher desacoplado do cache Streamlit
+- [x] mypy gradual + teste de integração do pipeline
+- [x] Observabilidade de runs / logging estruturado
+- [x] Custos de corretagem e IR simplificado (educacional)
+- [x] Metas de alocação por classe de ativo
+- [x] Watchlist e alertas técnicos/dividendos
+- [x] Gráficos de preço no detalhe do ativo
+- [x] Explicação de riscos da IA e disclaimer reforçado
+- [x] Modo offline e fixtures de mercado
+- [x] Docker one-command run
+- [x] i18n inglês da interface
+- [x] Processo jojo-ai (agents.md + system-design + kit + CI)
+
+#### Pendente (próximo trabalho)
+
+<!-- Adicione itens com "- [ ] …". Se não houver nenhum - [ ], a IA pergunta o que fazer em vez de inventar feature. -->
 
 ---
 
 ## 📋 SEÇÃO 2: REGRAS DE AGENTES (Não Altere)
 
-### Princípio de UX (inviolável)
+### Princípio de UX
 
 ```
-Raiz (humano):
-  agents.md  +  system-design.md  +  CHANGELOG.md
-
-Kit (agentes / máquina):
-  kit/docs  kit/scripts  kit/templates  kit/generated
+Humano escreve features → agents.md Seção 1 · ### Features
+Humano escreve design   → system-design.md
+Agentes leem, mapeiam, pedem OK, executam, marcam [x]
 ```
 
-**`system-design.md`** = fonte da verdade de arquitetura e design system.  
-Conflito chat vs. arquivo → vence o arquivo (ou o humano o atualiza).
+- **Fonte da verdade do backlog = `### Features` neste arquivo.**  
+- Nunca peça ao humano outro arquivo só para “cadastrar” feature.  
+- Agente **pode** gerar artefatos internos (ex.: rascunho em `docs/specs/…`) — o humano **não** é obrigado a abrir isso.
 
-Nunca peça ao usuário arquivos extras de config (`stack.md`, `design-premises.md`, JSON de skills, etc.).
-
-### Bootstrap de artefatos (agentes / CI)
+### Bootstrap (agentes / CI)
 
 ```bash
 cd kit && npm run sync
@@ -116,56 +156,45 @@ draft → spec_approved → ux_approved → tech_approved → test_red → code_
 | tested | Product Manager | `kit/docs/agents/product-manager.agent.md` |
 | (sempre) | Squad Lead | `kit/docs/agents/squad-lead.agent.md` |
 
-### Skills (catálogo: `kit/generated/skills-registry.json`)
+### Skills
 
-- `kit/docs/skills/tdd.md`
-- `kit/docs/skills/code-review.md`
-- `kit/docs/skills/ui-ux.md`
-- `kit/docs/skills/ducks-pattern.md`
-- `kit/docs/skills/autonomous-loop.md`
-- `kit/docs/skills/microcopy.md`
-
-Discovery: `kit/docs/recommendations.json` — humano **não** configura.
-
-### Templates
-
-- `kit/templates/spec.md`, `technical-spec.md`, `adr.md`, `feature.feature`
+Catálogo: `kit/generated/skills-registry.json`  
+`tdd` · `code-review` · `ui-ux` · `ducks-pattern` · `autonomous-loop` · `microcopy`
 
 ### 5 Princípios
 
-1. **Simplicidade** — Mude apenas o necessário
-2. **Sem Laziness** — Encontre causas raiz
-3. **Impacto Mínimo** — Zero bugs secundários
-4. **Reversibilidade** — Confirme operações destrutivas
-5. **Verificação** — Testes verdes antes de pronto
+1. Simplicidade  
+2. Sem laziness (causa raiz)  
+3. Impacto mínimo  
+4. Reversibilidade  
+5. Verificação (testes verdes)
 
 ---
 
-## 🔄 FLUXO DE EXECUÇÃO (Para Agentes)
+## 🔄 FLUXO (Para Agentes)
 
 ```
-1. Lê agents.md SEÇÃO 1
-2. Lê system-design.md
-3. Lê agents.md SEÇÃO 2 + runbook em kit/docs/agents/
-4. (Opcional) kit/generated/* + recommendations
-5. Lê CHANGELOG.md
-6. Se feature nova → apresenta humano → aguarda OK → executa → atualiza CHANGELOG
+1. Lê agents.md SEÇÃO 1 (projeto)
+2. Lê ### Features  ← backlog humano
+3. Lê system-design.md
+4. Pega o PRIMEIRO item - [ ] (não feito)
+5. Apresenta resumo + plano no chat → AGUARDA OK do humano
+6. Executa 8 fases (PM → … → done)
+7. Marca - [x] na ### Features e registra em CHANGELOG.md
 ```
 
 ### Checklist
 
-- [ ] `agents.md` + `system-design.md` + `CHANGELOG.md`
-- [ ] Se design placeholder e tarefa de UI/código → co-preencher com humano
-- [ ] Feature nova → OK humano antes de implementar
-- [ ] Não violar `system-design.md`
-- [ ] Registrar em `CHANGELOG.md`
+- [ ] Leu **### Features** em agents.md  
+- [ ] Leu system-design.md  
+- [ ] Feature nova = primeiro `- [ ]`  
+- [ ] OK humano no chat antes de codar  
+- [ ] Ao terminar: `- [x]` em Features + CHANGELOG  
 
 ---
 
-## 📌 Resumo
+## 📌 Resposta em uma linha
 
-| Raiz | Kit |
-| --- | --- |
-| `agents.md` · `system-design.md` · `CHANGELOG.md` | `kit/**` |
+**Nova feature → Seção 1 → `### Features` → item `- [ ] ...`**
 
-**Versão:** 1.3 | **UX:** 3 arquivos na raiz · resto em `kit/`
+**Versão:** 1.4 | Backlog humano = `### Features`

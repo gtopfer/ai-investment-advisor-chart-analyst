@@ -1,6 +1,6 @@
 {
   "version": "1.2",
-  "generated": "2026-08-07T15:51:12.587Z",
+  "generated": "2026-08-07T16:01:27.814Z",
   "sourceOfTruth": {
     "product": "agents.md",
     "systemDesign": "system-design.md",
@@ -30,8 +30,8 @@
     "naming": "snake_case (Python); pacotes por camada funcional",
     "code style": "ruff (lint + format)",
     "testes em `tests/`; fixtures de mercado em `tests/fixtures/`": true,
-    "specs históricas e backlog em `docs/specs/`; detalhe técnico em `docs/technical-spec.md`": true,
-    "processo de agentes": "**jojo-ai** (`agents.md` + `system-design.md` + `CHANGELOG.md` + `kit/`) — **sem DevKit**"
+    "histórico de specs": "`docs/specs/`; detalhe técnico: `docs/technical-spec.md`",
+    "processo de agentes": "**jojo-ai** — humano edita só `agents.md` + `system-design.md` + `CHANGELOG.md`"
   },
   "guardrails": {
     "mustHave": [

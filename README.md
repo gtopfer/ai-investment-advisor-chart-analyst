@@ -71,7 +71,7 @@ ai-investment-advisor-chart-analyst/
     └── layout.py               # Tema escuro, sidebar e resultados
 ```
 
-Documentação técnica completa (diagramas, contratos de interface, decisões arquiteturais e riscos mapeados) em [`docs/technical-spec.md`](docs/technical-spec.md). Arquitetura e design system resumidos em [`system-design.md`](system-design.md). Processo de agentes: **jojo-ai** — ver [`agents.md`](agents.md) e [`docs/README.md`](docs/README.md).
+Documentação técnica completa (diagramas, contratos de interface, decisões arquiteturais e riscos mapeados) em [`docs/technical-spec.md`](docs/technical-spec.md). Arquitetura e design system em [`system-design.md`](system-design.md). Processo de agentes **jojo-ai v1.4**: edite Features em [`agents.md`](agents.md) e diga *siga agents.md* — ver também [`docs/README.md`](docs/README.md).
 
 ---
 
