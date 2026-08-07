@@ -5,6 +5,7 @@
 ## Por onde começar
 
 - Processo de agentes (**jojo-ai**): [`agents.md`](../agents.md), [`system-design.md`](../system-design.md), [`CHANGELOG.md`](../CHANGELOG.md) na raiz; kit em [`kit/`](../kit/)
+- Design system (UI): [`design-system.md`](design-system.md)
 - [`CHANGELOG.md`](CHANGELOG.md) — histórico de mudanças notáveis do produto
 - [`BACKLOG.md`](BACKLOG.md) — melhorias futuras SPEC-016…035
 - Spec técnica detalhada: [`technical-spec.md`](technical-spec.md)

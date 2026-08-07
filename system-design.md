@@ -6,7 +6,7 @@
 > Detalhe histórico e contratos: [`docs/technical-spec.md`](docs/technical-spec.md).
 
 **Última atualização:** 2026-08-07  
-**Versão do design:** 1.3  
+**Versão do design:** 1.4  
 **Projeto:** AI Investment Advisor & Chart Analyst
 
 ---
@@ -111,23 +111,31 @@ kit/                           # jojo-ai (processo de agentes)
 
 ## 3. Design system (UI)
 
-| Token | Valor |
-| --- | --- |
-| Fundo | `#0f1419` |
-| Superfície / sidebar | `#151b23` |
-| Borda | `#243041` |
-| Texto primário | `#e7ecf1` |
-| Texto secundário | `#8b9bb0` |
-| Biblioteca | Streamlit + CSS custom (tema escuro) |
-| Emojis | mínimos; copy sóbria |
+> **Documento completo:** [`docs/design-system.md`](docs/design-system.md)  
+> **Código:** `ducks/ui/theme.py` (tokens nomeados + `dark_css()`)
+
+**Direção:** minimalista · **monocromático** (escala azul-cinza) · dark-first · Streamlit + CSS.
+
+| Token | Hex | Uso |
+| --- | --- | --- |
+| `color.bg` | `#0f1419` | Fundo app |
+| `color.bg_elevated` | `#121820` | Empty / elevado |
+| `color.surface` | `#151b23` | Sidebar, métricas |
+| `color.border` | `#243041` | Bordas sólidas |
+| `color.border_muted` | `#2a3a4d` | Empty dashed |
+| `color.text` | `#e7ecf1` | Corpo |
+| `color.text_heading` | `#f3f6f9` | Títulos |
+| `color.text_muted` | `#8b9bb0` | Subtítulo, legal |
+| `color.text_subtle` | `#9aabbf` | Empty body |
+
+**Regras:** sem acentos coloridos de marca; status com rótulo textual; hex só em `theme.py`; emojis mínimos; copy sóbria/educacional.
 
 **UX:**  
-- Sidebar em seções: Essencial · Carteira · Avançado  
+- Sidebar: Essencial · Carteira · Avançado  
 - Empty state em 3 passos  
-- Resultados: métricas → carteira → alocação → rebalance → “Como deve ficar” → detalhes (expander)  
-- Spinner/progress na geração; feedback de import N válidos / M ignorados  
-- Fallback de IA em PT-BR sem quebrar o pipeline  
-- Disclaimer educacional sempre visível  
+- Resultados: métricas → carteira → alocação → rebalance → “Como deve ficar” → detalhes → disclaimer  
+- Loading spinner/progress; import N/M; fallback IA sem quebrar pipeline  
+- Disclaimer sempre visível  
 
 ---
 

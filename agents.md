@@ -77,6 +77,7 @@ Investidores em aprendizado e uso pessoal/demo — não é recomendação profis
 
 #### Entregue (auditado 2026-08-07 — código + testes OK)
 
+- [x] Design system minimalista monocromático — `docs/design-system.md` + tokens em `ducks/ui/theme.py` + §3 `system-design.md`
 - [x] Refatoração Ducks Pattern — `ducks/{market,analysis,portfolio,llm,ui}` + `shared/{config,models,utils}`; APIs públicas; `system-design.md` §2 atualizado
 - [x] Multi-LLM (Groq + OpenAI-compatible) — `ducks/llm/` + registry + testes
 - [x] Layout minimalista escuro — `ducks/ui/theme.py`, `layout.py`

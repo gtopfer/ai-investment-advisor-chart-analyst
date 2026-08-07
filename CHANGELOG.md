@@ -14,6 +14,7 @@ Atualizado por agentes com aceite humano. **Fica na raiz** junto com `agents.md`
 - [x] DevKit removido (sem `./devkit`, hooks ou CI legada)
 - [x] Auditoria Features vs código (2026-08-07): 36 itens revalidados `[x]`; pytest OK
 - [x] Ducks Pattern: código em `ducks/*` + `shared/*`, APIs públicas, docs/system-design alinhados
+- [x] Design system monocromático: `docs/design-system.md`, tokens nomeados em `ducks/ui/theme.py`, §3 atualizado
 
 ### To Do (Validated by Human)
 - [ ] Próxima feature: adicionar `- [ ] …` em `agents.md` → Features
