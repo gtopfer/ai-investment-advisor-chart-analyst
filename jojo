@@ -1,0 +1,469 @@
+#!/usr/bin/env python3
+"""
+jojo — CLI do SPECKIT jojo-ai
+
+  jojo init [dir]   Instala o kit no repositório alvo (sem copiar à mão)
+  jojo run [dir]    Lê agents.md · ### Features e lista/seleciona a próxima feature
+
+Sem dependências externas (Python 3 stdlib).
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import List, Optional, Tuple
+
+VERSION = "0.1.0"
+
+# Diretório onde este script vive (repo jojo-ai / instalação do kit)
+JOJO_HOME = Path(__file__).resolve().parent
+
+# Arquivos/pastas instalados por `init` (superfície SPECKIT + kit)
+INSTALL_FILES = [
+    "agents.md",
+    "system-design.md",
+    "CHANGELOG.md",
+    "LICENSE",
+]
+INSTALL_DIRS = [
+    "kit",
+]
+# CLI também é copiada para o alvo
+INSTALL_SELF = True
+
+SKIP_NAMES = {".git", ".DS_Store", "__pycache__", "node_modules", ".venv"}
+
+
+def die(msg: str, code: int = 1) -> None:
+    print(f"jojo: {msg}", file=sys.stderr)
+    sys.exit(code)
+
+
+def info(msg: str) -> None:
+    print(f"jojo: {msg}")
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# ─── init ───────────────────────────────────────────────────────────────────
+
+
+def copy_tree(src: Path, dst: Path, force: bool) -> List[str]:
+    """Copia diretório; retorna lista de paths relativos gravados."""
+    written: List[str] = []
+    if not src.is_dir():
+        return written
+    for root, dirs, files in os.walk(src):
+        dirs[:] = [d for d in dirs if d not in SKIP_NAMES]
+        rel_root = Path(root).relative_to(src)
+        target_root = dst / rel_root
+        target_root.mkdir(parents=True, exist_ok=True)
+        for name in files:
+            if name in SKIP_NAMES or name.endswith(".pyc"):
+                continue
+            s = Path(root) / name
+            t = target_root / name
+            if t.exists() and not force:
+                continue
+            shutil.copy2(s, t)
+            written.append(str(t.relative_to(dst)))
+    return written
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    target = Path(args.path).expanduser().resolve()
+    force = args.force
+    skip_sync = args.skip_sync
+
+    if not target.exists():
+        target.mkdir(parents=True)
+        info(f"criado diretório {target}")
+
+    if not target.is_dir():
+        die(f"não é diretório: {target}")
+
+    # Fonte: se o próprio target já é o home do jojo, avisa
+    if target == JOJO_HOME and not args.force:
+        info("alvo é o próprio repositório jojo-ai — use outro path para instalar num projeto novo")
+        info(f"exemplo: jojo init ~/projetos/meu-app")
+        if not args.yes:
+            die("recusado (passe --force se quiser regravar aqui)", 2)
+
+    written: List[str] = []
+    skipped: List[str] = []
+
+    for name in INSTALL_FILES:
+        src = JOJO_HOME / name
+        if not src.is_file():
+            info(f"aviso: fonte ausente {name}")
+            continue
+        dst = target / name
+        if dst.exists() and not force:
+            skipped.append(name)
+            continue
+        shutil.copy2(src, dst)
+        written.append(name)
+
+    for name in INSTALL_DIRS:
+        src = JOJO_HOME / name
+        if not src.is_dir():
+            info(f"aviso: pasta fonte ausente {name}")
+            continue
+        dst = target / name
+        if dst.exists() and not force:
+            # merge sem sobrescrever por padrão
+            w = copy_tree(src, dst, force=False)
+            written.extend([f"{name}/{p}" for p in w] if w else [])
+            if not w:
+                skipped.append(name + "/")
+        else:
+            if dst.exists() and force:
+                shutil.rmtree(dst)
+            shutil.copytree(
+                src,
+                dst,
+                ignore=shutil.ignore_patterns(*SKIP_NAMES, "*.pyc"),
+            )
+            written.append(name + "/")
+
+    if INSTALL_SELF:
+        src_cli = Path(__file__).resolve()
+        dst_cli = target / "jojo"
+        if dst_cli.exists() and not force:
+            skipped.append("jojo")
+        else:
+            shutil.copy2(src_cli, dst_cli)
+            os.chmod(dst_cli, 0o755)
+            written.append("jojo")
+
+    # .ai mínimo (state) se não existir
+    ai_dir = target / ".ai"
+    ai_dir.mkdir(exist_ok=True)
+    state = ai_dir / "state.md"
+    if not state.exists() or force:
+        state.write_text(
+            f"""# Estado do Desenvolvimento
+
+Gerido por `jojo run` / agentes.
+
+| Código | Título | Status | Atualizado |
+|--------|--------|--------|------------|
+| — | (nenhuma feature ativa) | — | {utc_now()} |
+""",
+            encoding="utf-8",
+        )
+        written.append(".ai/state.md")
+
+    # Registrar instalação
+    meta = {
+        "installed_at": utc_now(),
+        "jojo_version": VERSION,
+        "source": str(JOJO_HOME),
+        "written": written,
+        "skipped_existing": skipped,
+    }
+    meta_path = target / ".ai" / "jojo-install.json"
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+
+    info(f"instalado em {target}")
+    if written:
+        info(f"gravados: {len(written)} artefato(s)")
+    if skipped:
+        info(f"já existiam (não sobrescritos; use --force): {', '.join(skipped)}")
+
+    # npm sync no kit do alvo
+    kit_pkg = target / "kit" / "package.json"
+    if kit_pkg.is_file() and not skip_sync:
+        try:
+            subprocess.run(
+                ["npm", "run", "sync"],
+                cwd=str(target / "kit"),
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            info("kit: npm run sync executado")
+        except FileNotFoundError:
+            info("npm não encontrado — pulei sync (rode depois: cd kit && npm run sync)")
+
+    print()
+    print("Próximos passos:")
+    print(f"  1. cd {target}")
+    print("  2. Edite agents.md → Seção 1 → ### Features  (suas features em - [ ])")
+    print("  3. Edite system-design.md")
+    print("  4. ./jojo run")
+    print()
+    return 0
+
+
+# ─── run ────────────────────────────────────────────────────────────────────
+
+
+FEATURE_LINE = re.compile(
+    r"^(\s*)-\s+\[([ xX])\]\s+(.+?)\s*$"
+)
+
+
+def extract_features_section(text: str) -> str:
+    """Retorna o corpo da seção ### Features até o próximo heading ## ou ### de nível similar."""
+    # Aceita ### Features ou ## Features
+    m = re.search(r"^#{2,3}\s+Features\s*$", text, re.MULTILINE | re.IGNORECASE)
+    if not m:
+        return ""
+    start = m.end()
+    rest = text[start:]
+    # Para no próximo ## (seção maior) ou ### que não seja subitem óbvio — para em ## 
+    stop = re.search(r"\n##\s+", rest)
+    if stop:
+        rest = rest[: stop.start()]
+    return rest
+
+
+def parse_features(section: str) -> List[Tuple[bool, str]]:
+    """Lista de (done, title). Ignora blocos de código e linhas de ajuda do template."""
+    items: List[Tuple[bool, str]] = []
+    in_fence = False
+    for line in section.splitlines():
+        if line.strip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        m = FEATURE_LINE.match(line)
+        if not m:
+            continue
+        done = m.group(2).lower() == "x"
+        title = m.group(3).strip()
+        # ignora bullets de documentação do próprio template
+        low = title.lower()
+        if low.startswith("[exemplo]") or "título curto" in low:
+            continue
+        if "a ia marca" in low or "feature já entregue" in low:
+            continue
+        items.append((done, title))
+    return items
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    root = Path(args.path).expanduser().resolve()
+    agents = root / "agents.md"
+    if not agents.is_file():
+        die(
+            f"agents.md não encontrado em {root}\n"
+            f"  rode: jojo init {root}"
+        )
+
+    text = agents.read_text(encoding="utf-8")
+    section = extract_features_section(text)
+    if not section.strip():
+        die(
+            "seção ### Features não encontrada em agents.md\n"
+            "  adicione em Seção 1:\n"
+            "  ### Features\n"
+            "  - [ ] Minha feature"
+        )
+
+    items = parse_features(section)
+    # filtra exemplos óbvios do template se ainda estiverem
+    real = [
+        (d, t)
+        for d, t in items
+        if not t.lower().startswith("[exemplo]")
+        and "título curto" not in t.lower()
+    ]
+    if not real:
+        real = items
+
+    pending = [(d, t) for d, t in real if not d]
+    done = [(d, t) for d, t in real if d]
+
+    print()
+    print("┌──────────────────────────────────────────────┐")
+    print("│  jojo run — backlog (agents.md · Features)   │")
+    print("└──────────────────────────────────────────────┘")
+    print(f"  projeto: {root}")
+    print(f"  feitas: {len(done)}  ·  pendentes: {len(pending)}")
+    print()
+
+    if done:
+        print("  Concluídas:")
+        for _, t in done:
+            print(f"    [x] {t}")
+        print()
+
+    if not pending:
+        print("  Nenhuma feature pendente (- [ ]).")
+        print("  Adicione itens em agents.md → ### Features")
+        print()
+        # estado
+        _write_run_state(root, None, pending, done)
+        return 0
+
+    print("  Pendentes:")
+    for i, (_, t) in enumerate(pending, 1):
+        mark = "→" if i == 1 else " "
+        print(f"    {mark} [ ] {t}")
+    print()
+
+    next_title = pending[0][1]
+    print("  PRÓXIMA FEATURE (primeira - [ ]):")
+    print(f"    {next_title}")
+    print()
+    print("  Agente: leia agents.md + system-design.md, mapeie esta feature,")
+    print("  peça OK no chat, execute o loop de 8 fases, marque [x] ao concluir.")
+    print()
+
+    _write_run_state(root, next_title, pending, done)
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "next": next_title,
+                    "pending": [t for _, t in pending],
+                    "done": [t for _, t in done],
+                    "agents_md": str(agents),
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+
+    return 0
+
+
+def _write_run_state(
+    root: Path,
+    next_title: Optional[str],
+    pending: List[Tuple[bool, str]],
+    done: List[Tuple[bool, str]],
+) -> None:
+    ai = root / ".ai"
+    ai.mkdir(exist_ok=True)
+    payload = {
+        "generated": utc_now(),
+        "next_feature": next_title,
+        "pending": [t for _, t in pending],
+        "done": [t for _, t in done],
+        "source": "agents.md###Features",
+    }
+    (ai / "jojo-run.json").write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+    # state.md resumo
+    lines = [
+        "# Estado (jojo run)",
+        "",
+        f"Atualizado: {utc_now()}",
+        "",
+        f"**Próxima feature:** {next_title or '— (nenhuma pendente)'}",
+        "",
+        "## Pendentes",
+        "",
+    ]
+    for _, t in pending:
+        lines.append(f"- [ ] {t}")
+    if not pending:
+        lines.append("- (vazio)")
+    lines += ["", "## Feitas", ""]
+    for _, t in done:
+        lines.append(f"- [x] {t}")
+    if not done:
+        lines.append("- (vazio)")
+    lines.append("")
+    (ai / "state.md").write_text("\n".join(lines), encoding="utf-8")
+
+
+# ─── status / version ───────────────────────────────────────────────────────
+
+
+def cmd_version(_: argparse.Namespace) -> int:
+    print(f"jojo {VERSION}")
+    print(f"home: {JOJO_HOME}")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="jojo",
+        description="SPECKIT jojo-ai — init instala o kit; run lê Features do agents.md",
+    )
+    p.add_argument("--version", action="store_true", help="mostra versão")
+    sub = p.add_subparsers(dest="command")
+
+    p_init = sub.add_parser("init", help="instala jojo-ai no repositório alvo")
+    p_init.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="diretório do projeto (default: .)",
+    )
+    p_init.add_argument(
+        "--force",
+        action="store_true",
+        help="sobrescreve arquivos existentes",
+    )
+    p_init.add_argument(
+        "--skip-sync",
+        action="store_true",
+        help="não roda npm run sync no kit",
+    )
+    p_init.add_argument(
+        "--yes",
+        action="store_true",
+        help="não pede confirmação em casos especiais",
+    )
+    p_init.set_defaults(func=cmd_init)
+
+    p_run = sub.add_parser(
+        "run",
+        help="lê agents.md ### Features e seleciona a próxima feature",
+    )
+    p_run.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="raiz do projeto com agents.md (default: .)",
+    )
+    p_run.add_argument(
+        "--json",
+        action="store_true",
+        help="também imprime JSON da próxima feature",
+    )
+    p_run.set_defaults(func=cmd_run)
+
+    p_ver = sub.add_parser("version", help="versão do jojo")
+    p_ver.set_defaults(func=cmd_version)
+
+    return p
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    argv = argv if argv is not None else sys.argv[1:]
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    if getattr(args, "version", False) and not getattr(args, "command", None):
+        return cmd_version(args)
+
+    if not getattr(args, "command", None):
+        parser.print_help()
+        return 0
+
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

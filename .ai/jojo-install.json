@@ -1,0 +1,16 @@
+{
+  "installed_at": "2026-08-07T16:20:24Z",
+  "jojo_version": "0.1.0",
+  "source": "/Users/gtopfer/Documents/Projetos/GitHubProject/jojo-ai",
+  "written": [
+    "jojo",
+    ".ai/state.md"
+  ],
+  "skipped_existing": [
+    "agents.md",
+    "system-design.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "kit/"
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "generated": "2026-08-07T16:01:27.723Z",
+  "generated": "2026-08-07T16:33:45.130Z",
   "sourceOfTruth": "kit/docs/skills/*.md (agents only; humans edit agents.md + system-design.md + CHANGELOG.md)",
   "skills": [
     {
