@@ -15,18 +15,21 @@ def test_pytest_ini_sets_pythonpath_to_project_root():
     assert "." in text
 
 
-def test_ruff_excludes_devkit_cli_script():
+def test_ruff_excludes_non_app_paths():
+    """Ruff não deve lintar venv/kit (fora do código de produção do app)."""
     cfg = ROOT / "ruff.toml"
     assert cfg.is_file()
     data = tomllib.loads(cfg.read_text(encoding="utf-8"))
-    # exclude / extend-exclude
     excluded = set(data.get("exclude") or []) | set(data.get("extend-exclude") or [])
-    # also accept nested under lint
     lint = data.get("lint") or {}
     excluded |= set(lint.get("exclude") or [])
-    assert "devkit" in excluded or any("devkit" in str(x) for x in excluded), (
-        "ruff deve excluir o script CLI devkit do lint de produção"
+    assert "venv" in excluded or ".venv" in excluded or any(
+        "venv" in str(x) for x in excluded
+    ), "ruff deve excluir venv do lint de produção"
+    assert not any("devkit" in str(x) for x in excluded), (
+        "DevKit removido do projeto — não deve restar exclude de devkit"
     )
+    assert not (ROOT / "devkit").exists(), "binário/script DevKit não deve existir"
 
 
 def test_ruff_application_packages_exist_for_review_scope():

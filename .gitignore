@@ -12,5 +12,5 @@ venv/
 .pytest_cache/
 .ruff_cache/
 
-# DevKit upgrade snapshots (local)
-.devkit-upgrade-backup-*/
+# jojo-ai kit
+kit/node_modules/

@@ -1,0 +1,90 @@
+{
+  "version": "1.2",
+  "description": "Built-in skill recommendations for agents. Not user configuration — do not ask humans to edit this file.",
+  "userConfigSurface": [
+    "agents.md",
+    "system-design.md",
+    "CHANGELOG.md"
+  ],
+  "kitRoot": "kit/",
+  "when": {
+    "starting_project": {
+      "read": [
+        "agents.md",
+        "system-design.md",
+        "kit/generated/project-context.json",
+        "kit/generated/skills-registry.json"
+      ],
+      "skills": ["ducks-pattern"]
+    },
+    "writing_code": {
+      "read": ["system-design.md", "agents.md"],
+      "skills": ["tdd", "code-review", "ducks-pattern", "autonomous-loop"]
+    },
+    "designing_ui": {
+      "read": ["system-design.md"],
+      "skills": ["ui-ux", "microcopy"]
+    },
+    "architecting": {
+      "read": ["system-design.md", "agents.md"],
+      "skills": ["ducks-pattern"]
+    },
+    "writing_tests": {
+      "read": ["system-design.md"],
+      "skills": ["tdd"]
+    },
+    "reviewing_code": {
+      "read": ["system-design.md"],
+      "skills": ["code-review"]
+    },
+    "documenting": {
+      "templates": [
+        "kit/templates/spec.md",
+        "kit/templates/technical-spec.md",
+        "kit/templates/adr.md",
+        "system-design.md"
+      ]
+    },
+    "organizing_code": {
+      "read": ["system-design.md"],
+      "skills": ["ducks-pattern"]
+    }
+  },
+  "by_phase": {
+    "draft": {
+      "agent": "product-manager",
+      "read": ["agents.md", "system-design.md"],
+      "skills": []
+    },
+    "spec_approved": {
+      "agent": "ux-designer",
+      "read": ["system-design.md"],
+      "skills": ["ui-ux", "microcopy"]
+    },
+    "ux_approved": {
+      "agent": "architect",
+      "read": ["system-design.md"],
+      "skills": ["ducks-pattern"]
+    },
+    "tech_approved": {
+      "agent": "qa",
+      "read": ["system-design.md"],
+      "skills": ["tdd"]
+    },
+    "test_red": {
+      "agent": "developer",
+      "read": ["system-design.md"],
+      "skills": ["tdd", "code-review", "ducks-pattern", "ui-ux", "autonomous-loop"]
+    },
+    "code_review": {
+      "agent": "qa",
+      "read": ["system-design.md"],
+      "skills": ["code-review"]
+    },
+    "tested": {
+      "agent": "product-manager",
+      "read": ["agents.md", "system-design.md"],
+      "skills": []
+    }
+  }
+}

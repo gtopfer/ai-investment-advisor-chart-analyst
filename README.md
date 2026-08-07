@@ -71,7 +71,7 @@ ai-investment-advisor-chart-analyst/
     └── layout.py               # Tema escuro, sidebar e resultados
 ```
 
-Documentação técnica completa (diagramas, contratos de interface, decisões arquiteturais e riscos mapeados) em [`.ai/technical-spec.md`](.ai/technical-spec.md). O projeto segue um fluxo de desenvolvimento orientado a especificação — ver [`docs/README.md`](docs/README.md).
+Documentação técnica completa (diagramas, contratos de interface, decisões arquiteturais e riscos mapeados) em [`docs/technical-spec.md`](docs/technical-spec.md). Arquitetura e design system resumidos em [`system-design.md`](system-design.md). Processo de agentes: **jojo-ai** — ver [`agents.md`](agents.md) e [`docs/README.md`](docs/README.md).
 
 ---
 
@@ -189,7 +189,7 @@ ruff check .
 - Indicadores técnicos exigem ao menos 50 candles de histórico; ativos com histórico curto retornam valores neutros silenciosamente
 - Sem persistência — nada é salvo entre sessões
 
-Detalhamento completo de riscos e mitigações em [`.ai/technical-spec.md`](.ai/technical-spec.md#8-riscos-e-mitigações).
+Detalhamento completo de riscos e mitigações em [`docs/technical-spec.md`](docs/technical-spec.md#8-riscos-e-mitigações).
 
 ---
 

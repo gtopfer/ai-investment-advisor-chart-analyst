@@ -1,0 +1,74 @@
+{
+  "version": "1.2",
+  "generated": "2026-08-07T15:51:12.587Z",
+  "sourceOfTruth": {
+    "product": "agents.md",
+    "systemDesign": "system-design.md",
+    "changelog": "CHANGELOG.md"
+  },
+  "userConfigSurface": [
+    "agents.md",
+    "system-design.md",
+    "CHANGELOG.md"
+  ],
+  "kitRoot": "kit/",
+  "name": "AI Investment Advisor & Chart Analyst",
+  "description": "Dashboard educacional de análise de investimentos: indicadores técnicos (RSI, MACD, EMAs, Bollinger), dividendos, interpretação por IA, scoring e alocação de carteira com plano de rebalanceamento. Mercados BR (ações/FIIs/BDRs), US (ações/ETFs) e cripto.",
+  "stack": {
+    "frontend / app": "Streamlit (Python 3.11+)",
+    "backend": "N/A (pipeline no mesmo processo Streamlit)",
+    "database": "Nenhuma (stateless; cache TTL + session state)",
+    "dados": "yfinance (Yahoo Finance)",
+    "ia": "Groq / OpenAI-compatible via pacote `llm/`",
+    "testes / lint": "pytest + ruff",
+    "ci/cd": "GitHub Actions (`jojo-review.yml` + suite Python)"
+  },
+  "users": [
+    "Investidores em aprendizado e uso pessoal/demo — não é recomendação profissional de investimento."
+  ],
+  "conventions": {
+    "naming": "snake_case (Python); pacotes por camada funcional",
+    "code style": "ruff (lint + format)",
+    "testes em `tests/`; fixtures de mercado em `tests/fixtures/`": true,
+    "specs históricas e backlog em `docs/specs/`; detalhe técnico em `docs/technical-spec.md`": true,
+    "processo de agentes": "**jojo-ai** (`agents.md` + `system-design.md` + `CHANGELOG.md` + `kit/`) — **sem DevKit**"
+  },
+  "guardrails": {
+    "mustHave": [
+      "Pipeline em camadas funcionais (`config → data_fetcher → analysis → allocator → models → ui`, orquestrado por `app.py`)",
+      "`models/schemas.py` sem dependências internas do projeto",
+      "Chaves de API e senhas só via env (nunca hardcoded / query params)",
+      "Disclaimer educacional sempre visível; sem tom de “dica de compra”",
+      "TDD para feature nova ou regressão relevante"
+    ],
+    "mustNOT": [
+      "Sem lógica de negócio em `ui/`; sem yfinance/LLM direto na UI"
+    ],
+    "all": [
+      "Pipeline em camadas funcionais (`config → data_fetcher → analysis → allocator → models → ui`, orquestrado por `app.py`)",
+      "Sem lógica de negócio em `ui/`; sem yfinance/LLM direto na UI",
+      "`models/schemas.py` sem dependências internas do projeto",
+      "Chaves de API e senhas só via env (nunca hardcoded / query params)",
+      "Disclaimer educacional sempre visível; sem tom de “dica de compra”",
+      "TDD para feature nova ou regressão relevante"
+    ]
+  },
+  "systemDesign": {
+    "path": "system-design.md",
+    "status": "present",
+    "note": "Agents must read system-design.md for architecture (§2) and design system (§3)."
+  },
+  "skills": [
+    "autonomous-loop",
+    "code-review",
+    "ducks-pattern",
+    "microcopy",
+    "tdd",
+    "ui-ux"
+  ],
+  "notes": [
+    "Generated — do not hand-edit.",
+    "Humans only edit root: agents.md, system-design.md, CHANGELOG.md.",
+    "Kit lives under kit/. Regenerate: cd kit && npm run generate:context"
+  ]
+}

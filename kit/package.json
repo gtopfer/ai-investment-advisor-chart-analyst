@@ -1,0 +1,24 @@
+{
+  "name": "jojo-ai-kit",
+  "version": "1.2.0",
+  "private": true,
+  "description": "Internal kit for jojo-ai SPECKIT. Humans edit only root agents.md, system-design.md, CHANGELOG.md.",
+  "scripts": {
+    "generate:registry": "node scripts/generate-registry.js",
+    "generate:context": "node scripts/generate-context.js",
+    "validate:skills": "node scripts/validate-skills.js",
+    "sync": "npm run generate:registry && npm run generate:context && npm run validate:skills",
+    "test:scripts": "npm run sync"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "speckit",
+    "tdd",
+    "jojo-ai"
+  ],
+  "license": "GPL-3.0-only"
+}
